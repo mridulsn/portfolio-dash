@@ -8,7 +8,7 @@ Output: ./public/index.html  (single encrypted file — safe to publish)
 """
 import warnings; warnings.filterwarnings("ignore")
 import sys; sys.stdout.reconfigure(encoding="utf-8"); sys.stderr.reconfigure(encoding="utf-8")
-import json, os, io, time, base64, hashlib, urllib.request, datetime as dt
+import json, os, io, re, time, base64, hashlib, urllib.request, datetime as dt
 import numpy as np, pandas as pd, yfinance as yf
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -201,9 +201,9 @@ def find_code(kw):
     return min(c,key=lambda x:len(x[1]))[0] if c else None
 CURATED={
  "Flexi Cap":[["parag","parikh","flexi"],["hdfc","flexi","cap"],["quant","flexi"],["jm","flexi"]],
- "Large Cap":[["icici","bluechip"],["nippon","large","cap"],["hdfc","top","100"]],
+ "Large Cap":[["icici","erstwhile","bluechip"],["nippon","large","cap"],["hdfc","top","100"]],
  "Large & Mid Cap":[["bajaj","finserv","large","mid"],["motilal","large","mid"],["kotak","equity","opportunities"],["sbi","large","midcap"],["navi","large"]],
- "Mid Cap":[["motilal","midcap"],["hdfc","mid-cap","opportunities"],["quant","mid","cap"],["edelweiss","mid","cap"],["nippon","growth"]],
+ "Mid Cap":[["motilal","midcap"],["hdfc","mid-cap","opportunities"],["quant","mid","cap"],["edelweiss","mid","cap"],["nippon","growth mid cap","plan growth"]],
  "Small Cap":[["nippon","small","cap"],["quant","small","cap"],["invesco","smallcap"],["hdfc","small","cap"],["bandhan","small","cap"],["tata","small","cap"],["sbi","small","cap"]],
  "ELSS":[["quant","elss"],["hdfc","elss"],["mirae","tax","saver"],["parag","parikh","elss"]],
  "Hybrid Aggressive":[["icici","equity","debt"],["hdfc","hybrid","equity"],["quant","absolute"],["sbi","equity","hybrid"]],
@@ -231,7 +231,9 @@ def packf(df):
     out=[]
     for _,x in df.sort_values(['cat','rank_metric'],ascending=[True,False]).iterrows():
         g=lambda v: round(v*100,1) if v==v else None
-        out.append(dict(name=x['name'][:46],cat=x['cat'],nav=x['nav'],r1m=g(x['r1m']),r3m=g(x['r3m']),
+        nm=x['name'] if x['held'] else re.sub(r'\s+(Fund\s+)?Direct Plan.*$','',x['name'],flags=re.I).replace(' Fund',' ')
+        nm=re.sub(r'\s+',' ',nm).strip()
+        out.append(dict(name=nm[:46],cat=x['cat'],nav=x['nav'],r1m=g(x['r1m']),r3m=g(x['r3m']),
             r6m=g(x['r6m']),r1y=g(x['r1y']),r3y=g(x['r3y']),r5y=g(x['r5y']),
             sharpe=round(x['sharpe'],2) if x['sharpe']==x['sharpe'] else None,
             maxdd=round(x['maxdd']*100) if x['maxdd']==x['maxdd'] else None,
