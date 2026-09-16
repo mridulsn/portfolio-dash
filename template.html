@@ -1,119 +1,231 @@
-<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Portfolio &amp; Market Dashboard</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Portfolio Dashboard</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
+:root{
+  --bg:#0d1117; --surface:#161b22; --surface-2:#1c2128; --line:#30363d; --line-soft:#21262d;
+  --ink:#e6edf3; --ink-2:#c9d1d9; --ink-3:#8b949e;
+  --accent:#1f6feb; --accent-ink:#58a6ff; --accent-soft:#1f6feb26;
+  --pos:#3fb950; --neg:#f85149; --amber:#d29922;
+  --pos-soft:#10391f; --neg-soft:#3d1418; --amber-soft:#3d2e0a;
+  --radius:12px;
+}
+:root[data-theme="light"]{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f3f4f6; --line:#e3e6ea; --line-soft:#eef0f3;
+  --ink:#12151a; --ink-2:#2b313b; --ink-3:#5d6776;
+  --accent:#2f5bea; --accent-ink:#2f5bea; --accent-soft:#eaeffd;
+  --pos:#0f7b53; --neg:#c0362c; --amber:#9a6a00;
+  --pos-soft:#e4f5ee; --neg-soft:#fdecea; --amber-soft:#fdf2da;
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3}
-.wrap{max-width:1280px;margin:0 auto;padding:24px;display:none}
-h1{margin:0;font-size:24px}.sub{color:#8b949e;font-size:13px;margin-top:4px}
-.tabs{display:flex;gap:8px;margin:20px 0 16px}
-.tab{padding:9px 18px;background:#161b22;border:1px solid #30363d;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:#8b949e}
-.tab.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
-.cards{display:flex;gap:14px;margin:0 0 20px;flex-wrap:wrap}
-.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px 18px;flex:1;min-width:140px}
-.card .v{font-size:24px;font-weight:700}.card .l{color:#8b949e;font-size:12px;margin-top:3px}
+html,body{margin:0}
+body{font:14px/1.5 'Segoe UI',-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;font-size:13px;color:var(--ink)}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 20px 40px;display:none}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+h1{margin:0;font-size:23px;letter-spacing:-.02em}
+.sub{color:var(--ink-3);font-size:12.5px;margin-top:4px}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:999px;padding:6px 13px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3);color:var(--ink)}
+.banner{margin:14px 0 0;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5}
+.banner.warn{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber)}
+.banner.bad{background:var(--neg-soft);color:var(--neg);border:1px solid var(--neg)}
+.tabs{display:flex;gap:6px;margin:18px 0 16px;overflow-x:auto;padding-bottom:2px}
+.tab{padding:8px 15px;background:var(--surface);border:1px solid var(--line);border-radius:999px;cursor:pointer;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .panel{display:none}.panel.on{display:block}
-h2{font-size:16px;margin:22px 0 10px;color:#c9d1d9}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.box{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 14px}
-table{width:100%;border-collapse:collapse;background:#161b22;border-radius:10px;overflow:hidden}
-th,td{padding:8px 10px;text-align:right;font-size:12.5px;border-bottom:1px solid #21262d;white-space:nowrap}
-th{background:#21262d;cursor:pointer;user-select:none;color:#c9d1d9;position:sticky;top:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:0 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px;min-width:0}
+.card .v{font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.card .l{color:var(--ink-3);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.card .h{color:var(--ink-3);font-size:12.5px;margin-top:2px}
+h2{font-size:15px;margin:22px 0 10px;color:var(--ink-2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h2 .sp{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;min-width:0}
+.box h3{margin:2px 0 8px;font-size:14px;color:var(--ink-2)}
+.note{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;margin:10px 0;line-height:1.6;color:var(--ink-2)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}
+.toolbar input[type=search]{flex:1 1 220px;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;outline:none}
+.toolbar input[type=search]:focus{border-color:var(--accent)}
+.toolbar select{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+.toolbar label{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:13px;cursor:pointer}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:right;font-size:12.5px;border-bottom:1px solid var(--line-soft);white-space:nowrap;font-variant-numeric:tabular-nums}
+th{background:var(--surface-2);cursor:pointer;user-select:none;color:var(--ink-2);position:sticky;top:0;font-weight:600}
+th[data-k]:hover{color:var(--accent-ink)}
 th:first-child,td:first-child{text-align:left;font-weight:600}
 td.l,th.l{text-align:left}
-tr:hover{background:#1c2128}
-.pos{color:#3fb950}.neg{color:#f85149}.dim{color:#8b949e}
-.held{box-shadow:inset 3px 0 0 #d29922}
-.tag,.read{padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700}
-.BUYWATCH,.KEEP{background:#10391f;color:#3fb950}
-.EXTENDED,.HOLD{background:#3d2e0a;color:#d29922}
-.AVOID,.TRIMREPLACE,.REVIEW{background:#3d1418;color:#f85149}
-.NEUTRAL{background:#21262d;color:#8b949e}
-.foot{color:#8b949e;font-size:11px;margin-top:22px;line-height:1.6;border-top:1px solid #21262d;padding-top:12px}
-.note{background:#10391f33;border:1px solid #1f6feb44;border-radius:8px;padding:10px 14px;font-size:13px;margin:10px 0;line-height:1.5}
-/* password gate */
-#gate{position:fixed;inset:0;background:#0d1117;display:flex;align-items:center;justify-content:center;z-index:9999}
-.lock{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:36px 40px;width:330px;text-align:center}
-.lock h3{margin:0 0 6px;font-size:20px}.lock p{color:#8b949e;font-size:12.5px;margin:0 0 18px}
-.lock input{width:100%;padding:11px 13px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:15px;text-align:center;letter-spacing:2px}
-.lock input:focus{outline:none;border-color:#1f6feb}
-.lock button{width:100%;margin-top:12px;padding:11px;background:#1f6feb;border:0;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
-.lock button:hover{background:#388bfd}
-.lock .err{color:#f85149;font-size:12.5px;margin-top:12px;min-height:16px}
+tbody tr:hover{background:var(--surface-2)}
+tfoot td{font-weight:700;background:var(--surface-2)}
+.pos{color:var(--pos)}.neg{color:var(--neg)}.dim{color:var(--ink-3)}
+.held{box-shadow:inset 3px 0 0 var(--amber)}
+.tag{padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700}
+.BUYWATCH,.KEEP,.ADDED{background:var(--pos-soft);color:var(--pos)}
+.EXTENDED,.HOLD,.PENDING{background:var(--amber-soft);color:var(--amber)}
+.AVOID,.TRIMREPLACE,.REVIEW,.ERROR{background:var(--neg-soft);color:var(--neg)}
+.NEUTRAL,.UPCOMING{background:var(--line-soft);color:var(--ink-3)}
+.mini td,.mini th{font-size:12px;padding:6px 8px}
+.empty{padding:22px;text-align:center;color:var(--ink-3)}
+.foot{color:var(--ink-3);font-size:11.5px;margin-top:24px;line-height:1.7;border-top:1px solid var(--line-soft);padding-top:12px}
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.lock{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:32px 34px;width:340px;max-width:100%;text-align:center}
+.lock h3{margin:0 0 6px;font-size:19px}.lock p{color:var(--ink-3);font-size:12.5px;margin:0 0 18px}
+.lock input{width:100%;padding:11px 13px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center;letter-spacing:2px}
+.lock input:focus{outline:none;border-color:var(--accent)}
+.lock button{width:100%;margin-top:12px;padding:11px;background:var(--accent);border:0;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.lock .err{color:var(--neg);font-size:12.5px;margin-top:12px;min-height:16px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+@media (max-width:560px){.wrap{padding:16px}.card .v{font-size:19px}h1{font-size:20px}}
 </style></head><body>
 
 <div id="gate"><div class="lock">
-<h3>🔒 Private Dashboard</h3>
+<h3>Private Dashboard</h3>
 <p>Your holdings are encrypted. Enter the password to view.</p>
 <input id="pw" type="password" placeholder="password" autocomplete="off" autofocus>
-<button id="unlock">Unlock</button>
+<button id="unlock" type="button">Unlock</button>
 <div class="err" id="err"></div>
 </div></div>
 
 <div class="wrap" id="wrap">
-<h1>📊 Portfolio &amp; Market Dashboard</h1>
-<div class="sub" id="sub"></div>
-<div class="tabs">
-<div class="tab on" data-p="port">🧰 My Portfolio</div>
-<div class="tab" data-p="stocks">📈 Stocks (Nifty 500)</div>
-<div class="tab" data-p="funds">💰 Mutual Funds</div>
+<header>
+  <div><h1>Portfolio &amp; Market Dashboard</h1><div class="sub" id="sub"></div></div>
+  <div class="hbtns">
+    <button class="btn" id="csv" type="button">Export holdings CSV</button>
+    <button class="btn" id="theme" type="button">Theme</button>
+    <button class="btn" id="lockbtn" type="button">Lock</button>
+  </div>
+</header>
+<div id="banners"></div>
+
+<div class="tabs" role="tablist">
+  <div class="tab on" data-p="ov">Overview</div>
+  <div class="tab" data-p="hold">Holdings</div>
+  <div class="tab" data-p="sip">SIPs</div>
+  <div class="tab" data-p="tax">Tax-loss</div>
+  <div class="tab" data-p="stocks">Stocks (Nifty 500)</div>
+  <div class="tab" data-p="funds">Mutual Funds</div>
 </div>
 
-<div class="panel on" id="port">
-<div class="cards" id="psum"></div>
-<div class="note" id="diag"></div>
-<h2>My Stocks — keep / hold / trim (sorted worst P&amp;L first)</h2>
-<table id="myst"><thead><tr>
-<th class="l" data-k="sym">Stock</th><th class="l" data-k="sector">Sector</th><th data-k="qty">Qty</th>
-<th data-k="avg">Avg ₹</th><th data-k="px">LTP ₹</th><th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L ₹</th>
-<th data-k="wt">Weight %</th><th data-k="pctile">Rank %ile</th><th data-k="tag">Signal</th>
-<th data-k="read">Read</th><th class="l" data-k="rep">Replace?</th></tr></thead><tbody></tbody></table>
-<h2>My Mutual Funds</h2>
-<table id="mymf"><thead><tr>
-<th class="l" data-k="name">Fund</th><th class="l" data-k="cat">Category</th><th data-k="avg">Avg NAV</th>
-<th data-k="nav">NAV</th><th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L ₹</th><th data-k="wt">Weight %</th>
-<th data-k="r1y">1Y %</th><th data-k="pctile">Cat %ile</th><th data-k="read">Read</th></tr></thead><tbody></tbody></table>
-<div class="grid2" style="margin-top:18px">
-<div class="box"><h2 style="margin-top:4px">Stock concentration (sector)</h2><div id="secchart"></div></div>
-<div class="box"><h2 style="margin-top:4px">MF allocation (category)</h2><div id="catchart"></div></div>
-</div>
+<!-- OVERVIEW -->
+<div class="panel on" id="ov">
+  <div class="cards" id="ovcards"></div>
+  <div class="note" id="diag"></div>
+  <div class="grid2">
+    <div class="box"><h3>Where your money is</h3><div id="allocchart"></div></div>
+    <div class="box"><h3>Profit / loss by holding (&#8377;)</h3><div id="plchart"></div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="box"><h3>Stocks by sector</h3><div id="secchart"></div></div>
+    <div class="box"><h3>Mutual funds by category</h3><div id="catchart"></div></div>
+  </div>
 </div>
 
+<!-- HOLDINGS -->
+<div class="panel" id="hold">
+  <div class="toolbar">
+    <input type="search" id="hq" placeholder="Search holdings (name, sector, category)">
+    <select id="hread"><option value="">Any read</option><option>KEEP</option><option>HOLD</option><option>TRIM/REPLACE</option><option>REVIEW</option></select>
+    <label><input type="checkbox" id="hloss"> Losses only</label>
+  </div>
+  <h2>My stocks <span class="dim" id="stcount"></span></h2>
+  <div class="tw"><table id="myst"><thead><tr>
+  <th class="l" data-k="sym">Stock</th><th class="l" data-k="sector">Sector</th><th data-k="qty">Qty</th>
+  <th data-k="avg">Avg &#8377;</th><th data-k="px">LTP &#8377;</th><th data-k="r1d">Today %</th><th data-k="day_pl">Today &#8377;</th>
+  <th data-k="inv">Invested</th><th data-k="pres">Value</th><th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L &#8377;</th>
+  <th data-k="wt">Weight %</th><th data-k="pctile">Rank %ile</th><th data-k="tag">Signal</th>
+  <th data-k="read">Read</th><th class="l" data-k="rep">Replace?</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+  <h2>My mutual funds <span class="dim" id="mfcount"></span></h2>
+  <div class="tw"><table id="mymf"><thead><tr>
+  <th class="l" data-k="name">Fund</th><th class="l" data-k="cat">Category</th><th data-k="units">Units</th><th data-k="avg">Avg NAV</th>
+  <th data-k="nav">NAV</th><th data-k="day_pl">Last NAV move &#8377;</th><th data-k="inv">Invested</th><th data-k="pres">Value</th>
+  <th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L &#8377;</th><th data-k="wt">Weight %</th>
+  <th data-k="sip_amount">SIP added &#8377;</th><th data-k="r1y">1Y %</th><th data-k="pctile">Cat %ile</th><th data-k="read">Read</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+</div>
+
+<!-- SIPS -->
+<div class="panel" id="sip">
+  <div class="cards" id="sipcards"></div>
+  <div class="note" id="sipnote"></div>
+  <h2>Active SIPs</h2>
+  <div class="tw"><table id="siptbl"><thead><tr>
+  <th class="l" data-k="name">Fund</th><th data-k="amount">Monthly &#8377;</th><th data-k="day">Date</th>
+  <th data-k="next">Next instalment</th><th data-k="days">In</th><th data-k="n_added">Added since statement</th>
+  <th data-k="units_added">Units added</th><th data-k="amount_added">&#8377; added</th><th class="l" data-k="status">Status</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+  <h2>Instalments added automatically</h2>
+  <div class="tw"><table id="siplog"><thead><tr>
+  <th class="l">Instalment date</th><th class="l">Fund</th><th>Amount &#8377;</th><th>NAV used</th><th>NAV date</th><th>Units</th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<!-- TAX -->
+<div class="panel" id="tax">
+  <div class="cards" id="taxcards"></div>
+  <div class="note">Stocks held more than 12 months count as <b>long-term</b>; the rest are <b>short-term</b>. The split uses the long-term quantity on your Kite statement, so it is only as current as that statement. Booked losses can be set off against gains of the same year, and unused losses carry forward if you file on time. This is a record of where your losses sit, not tax advice.</div>
+  <div class="tw"><table id="taxtbl"><thead><tr>
+  <th class="l" data-k="sym">Stock</th><th data-k="qty">Qty</th><th data-k="ltq">Long-term qty</th>
+  <th data-k="pl">Total P&amp;L &#8377;</th><th data-k="st_pl">Short-term &#8377;</th><th data-k="lt_pl">Long-term &#8377;</th><th data-k="plpct">P&amp;L %</th><th class="l" data-k="read">Read</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+</div>
+
+<!-- STOCKS -->
 <div class="panel" id="stocks">
-<div class="cards" id="ssum"></div>
-<div class="grid2">
-<div class="box"><h2 style="margin-top:4px">🏆 Top 10 — Today</h2><div id="td"></div></div>
-<div class="box"><h2 style="margin-top:4px">🏆 Top 10 — This Week</h2><div id="tw"></div></div>
-</div>
-<div class="grid2" style="margin-top:16px">
-<div class="box"><h2 style="margin-top:4px">🏆 Top 10 — This Month</h2><div id="tm"></div></div>
-<div class="box"><h2 style="margin-top:4px">🛡️ Stable Winners (quiet compounders)</h2><div id="stb"></div></div>
-</div>
-<h2>Full Nifty 500 screen — click any column to sort · <span style="color:#d29922">amber bar = you hold it</span></h2>
-<table id="alltbl"><thead><tr>
-<th class="l" data-k="sym">Stock</th><th class="l" data-k="sector">Sector</th><th data-k="px">₹</th>
-<th data-k="r1d">1D</th><th data-k="r1w">1W</th><th data-k="r1m">1M</th><th data-k="r3m">3M</th>
-<th data-k="r6m">6M</th><th data-k="r1y">1Y</th><th data-k="adx">ADX</th><th data-k="vol">Vol</th>
-<th data-k="sharpe">Sharpe</th><th data-k="maxdd">MaxDD</th><th data-k="score">Score</th>
-<th data-k="pctile">%ile</th><th data-k="tag">Signal</th></tr></thead><tbody></tbody></table>
+  <div class="cards" id="ssum"></div>
+  <div class="grid2">
+    <div class="box"><h3>Top 10 &#8212; today</h3><div id="td"></div></div>
+    <div class="box"><h3>Top 10 &#8212; this week</h3><div id="tw"></div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="box"><h3>Top 10 &#8212; this month</h3><div id="tm"></div></div>
+    <div class="box"><h3>Stable winners (quiet compounders)</h3><div id="stb"></div></div>
+  </div>
+  <h2>Full Nifty 500 screen <span class="dim" id="scount"></span></h2>
+  <div class="toolbar">
+    <input type="search" id="sq" placeholder="Search symbol or sector">
+    <select id="stag"><option value="">Any signal</option><option>BUY-WATCH</option><option>EXTENDED</option><option>NEUTRAL</option><option>AVOID</option></select>
+    <label><input type="checkbox" id="sheld"> Only stocks I hold</label>
+  </div>
+  <div class="tw"><table id="alltbl"><thead><tr>
+  <th class="l" data-k="sym">Stock</th><th class="l" data-k="sector">Sector</th><th data-k="px">&#8377;</th>
+  <th data-k="r1d">1D</th><th data-k="r1w">1W</th><th data-k="r1m">1M</th><th data-k="r3m">3M</th>
+  <th data-k="r6m">6M</th><th data-k="r1y">1Y</th><th data-k="adx">ADX</th><th data-k="vol">Vol</th>
+  <th data-k="sharpe">Sharpe</th><th data-k="maxdd">MaxDD</th><th data-k="score">Score</th>
+  <th data-k="pctile">%ile</th><th data-k="tag">Signal</th></tr></thead><tbody></tbody></table></div>
 </div>
 
+<!-- FUNDS -->
 <div class="panel" id="funds">
-<div class="note">Indian MF NAVs are end-of-day (AMFI). Returns &gt;1Y are annualised (CAGR). Universe = your funds + curated category leaders. Amber bar = you hold it.</div>
-<table id="ftbl"><thead><tr>
-<th class="l" data-k="name">Fund</th><th class="l" data-k="cat">Category</th><th data-k="nav">NAV</th>
-<th data-k="r1m">1M</th><th data-k="r3m">3M</th><th data-k="r6m">6M</th><th data-k="r1y">1Y</th>
-<th data-k="r3y">3Y</th><th data-k="r5y">5Y</th><th data-k="sharpe">Sharpe</th>
-<th data-k="maxdd">MaxDD</th><th data-k="pctile">Cat %ile</th></tr></thead><tbody></tbody></table>
+  <div class="note">Indian MF NAVs are end-of-day (AMFI). Returns over 1 year are annualised (CAGR). Universe = your funds + curated category leaders. Amber bar = you hold it.</div>
+  <div class="toolbar">
+    <input type="search" id="fq" placeholder="Search fund">
+    <select id="fcat"><option value="">Any category</option></select>
+    <label><input type="checkbox" id="fheld"> Only funds I hold</label>
+  </div>
+  <div class="tw"><table id="ftbl"><thead><tr>
+  <th class="l" data-k="name">Fund</th><th class="l" data-k="cat">Category</th><th data-k="nav">NAV</th>
+  <th data-k="r1m">1M</th><th data-k="r3m">3M</th><th data-k="r6m">6M</th><th data-k="r1y">1Y</th>
+  <th data-k="r3y">3Y</th><th data-k="r5y">5Y</th><th data-k="sharpe">Sharpe</th>
+  <th data-k="maxdd">MaxDD</th><th data-k="pctile">Cat %ile</th></tr></thead><tbody></tbody></table></div>
 </div>
 
 <div class="foot" id="foot"></div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 /*__DATA__*/
 
-// ---------- password gate: decrypt the embedded holdings ----------
+// ---------- theme (applies to the gate too) ----------
+(function(){
+  let t=null; try{ t=localStorage.getItem('portdash-theme'); }catch(e){}
+  if(t==='light') document.documentElement.setAttribute('data-theme','light');
+})();
+
+// ---------- password gate ----------
 async function decryptPayload(enc, password){
   const b64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
   const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
@@ -126,12 +238,13 @@ async function decryptPayload(enc, password){
 async function tryUnlock(){
   const pw=document.getElementById('pw').value;
   const err=document.getElementById('err'); err.textContent='';
-  try{
-    const DATA=await decryptPayload(ENC, pw);
-    document.getElementById('gate').style.display='none';
-    document.getElementById('wrap').style.display='block';
-    boot(DATA);
-  }catch(e){ err.textContent='Wrong password. Try again.'; document.getElementById('pw').select(); }
+  let DATA;
+  try{ DATA=await decryptPayload(ENC, pw); }
+  catch(e){ err.textContent='Wrong password. Try again.'; document.getElementById('pw').select(); return; }
+  document.getElementById('gate').style.display='none';
+  document.getElementById('wrap').style.display='block';
+  try{ boot(DATA); }
+  catch(e){ console.error(e); err.textContent=''; document.getElementById('banners').innerHTML='<div class="banner bad">Part of the dashboard failed to render: '+String(e.message||e)+'</div>'; }
 }
 document.getElementById('unlock').onclick=tryUnlock;
 document.getElementById('pw').addEventListener('keydown',e=>{ if(e.key==='Enter') tryUnlock(); });
@@ -139,109 +252,247 @@ document.getElementById('pw').addEventListener('keydown',e=>{ if(e.key==='Enter'
 // ---------- everything below runs only after a correct password ----------
 function boot(DATA){
 const S=DATA.summary;
-document.getElementById('sub').innerHTML=`Data as of <b>${S.asof}</b> · price bar <b>${S.last_bar}</b> · ${S.n_screened} stocks screened · EOD/delayed data`;
-const pct=v=>v==null?'<span class="dim">—</span>':`<span class="${v>=0?'pos':'neg'}">${v>0?'+':''}${v}</span>`;
-const inr=v=>(v<0?'-₹':'₹')+Math.abs(v).toLocaleString('en-IN');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sign=v=>v>0?'+':'';
+const inr=v=>v==null?'—':(v<0?'-₹':'₹')+Math.abs(Math.round(v)).toLocaleString('en-IN');
+const inrS=v=>v==null?'—':(v>0?'+':'')+inr(v);
+const pct=v=>v==null?'<span class="dim">—</span>':`<span class="${v>=0?'pos':'neg'}">${sign(v)}${v}</span>`;
+const money=v=>v==null?'<span class="dim">—</span>':`<span class="${v>=0?'pos':'neg'}">${inrS(v)}</span>`;
 const cl=t=>(t||'').replace(/[^A-Z]/gi,'');
+const IST=5.5*3600e3;
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('show'),1800); }
+function ago(ms){ const m=Math.round(ms/60000); if(m<60) return m+' min ago'; const h=Math.round(m/60); if(h<48) return h+' h ago'; return Math.round(h/24)+' days ago'; }
+function fmtDate(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+function shortD(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function daysTo(iso){ const nowIst=new Date(Date.now()+IST); const t0=Date.UTC(nowIst.getUTCFullYear(),nowIst.getUTCMonth(),nowIst.getUTCDate()); const [y,m,d]=iso.split('-').map(Number); return Math.round((Date.UTC(y,m-1,d)-t0)/864e5); }
 
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
-  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
-  t.classList.add('on');document.getElementById(t.dataset.p).classList.add('on');
-});
+// ---- header receipt + staleness (show the receipt, not a claim) ----
+const built=S.built_utc?Date.parse(S.built_utc):NaN;
+const age=isNaN(built)?null:Date.now()-built;
+$('sub').innerHTML=`Refreshed <b>${age==null?esc(S.asof):ago(age)}</b> (${esc(S.asof)}) &middot; stock prices to <b>${fmtDate(S.last_bar)}</b> &middot; MF NAV <b>${fmtDate(S.nav_date)}</b> &middot; holdings statement <b>${fmtDate(S.holdings_asof)}</b>`;
+(function(){
+  const b=[];
+  if(age!=null){
+    const nowIst=new Date(Date.now()+IST); const dow=nowIst.getUTCDay(), hr=nowIst.getUTCHours();
+    const limitH=(dow===0||dow===6||(dow===1&&hr<11))?66:26;
+    if(age>limitH*3600e3) b.push(`<div class="banner bad"><b>This data is ${ago(age).replace(' ago','')} old.</b> The automatic refresh should run every 5 minutes in market hours and every night, so it has probably stopped. Check the Actions tab of the portfolio-dash repository.</div>`);
+  }
+  if(S.holdings_asof && daysTo(S.holdings_asof)<-45) b.push(`<div class="banner warn">Holdings come from the Kite statement of ${fmtDate(S.holdings_asof)}. SIP instalments are added automatically, but any buy, sell or redemption since then is not. Download a fresh statement when you trade.</div>`);
+  if(S.sip_pending) b.push(`<div class="banner warn">${S.sip_pending} SIP instalment${S.sip_pending>1?'s are':' is'} waiting for the fund's NAV and not counted yet. They are added on the next refresh after the NAV is published (usually the same night).</div>`);
+  $('banners').innerHTML=b.join('');
+})();
 
-document.getElementById('psum').innerHTML=`
-<div class="card"><div class="v">${inr(S.t_pres)}</div><div class="l">Total value (in ${inr(S.t_inv)})</div></div>
-<div class="card"><div class="v ${S.t_pl>=0?'pos':'neg'}">${inr(S.t_pl)}</div><div class="l">Total P&L (${S.t_plpct}%)</div></div>
-<div class="card"><div class="v ${S.s_pl>=0?'pos':'neg'}">${S.s_plpct}%</div><div class="l">Stocks (${inr(S.s_pres)})</div></div>
-<div class="card"><div class="v ${S.m_pl>=0?'pos':'neg'}">${S.m_plpct}%</div><div class="l">Mutual funds (${inr(S.m_pres)})</div></div>`;
+// ---- tabs ----
+function showTab(p){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.p===p));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('on',x.id===p));
+  try{ localStorage.setItem('portdash-tab',p); }catch(e){}
+  if(p==='ov') drawCharts();
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.p));
+
+// ---- overview cards ----
+const dayPct=S.t_pres?Math.round(1000*S.day_pl/(S.t_pres-S.day_pl))/10:0;
+$('ovcards').innerHTML=`
+<div class="card"><div class="v">${inr(S.t_pres)}</div><div class="l">Total value</div><div class="h">Invested ${inr(S.t_inv)}</div></div>
+<div class="card"><div class="v ${S.t_pl>=0?'pos':'neg'}">${inrS(S.t_pl)}</div><div class="l">Total P&amp;L</div><div class="h">${sign(S.t_plpct)}${S.t_plpct}% overall</div></div>
+<div class="card"><div class="v ${S.day_pl>=0?'pos':'neg'}">${inrS(S.day_pl)}</div><div class="l">Latest day</div><div class="h">${sign(dayPct)}${dayPct}% &middot; stocks ${inrS(S.s_day_pl)} (${shortD(S.last_bar)}), MF ${inrS(S.m_day_pl)} (${S.nav_prev_date?shortD(S.nav_prev_date)+' &rarr; ':''}${shortD(S.nav_date)})</div></div>
+<div class="card"><div class="v ${S.s_pl>=0?'pos':'neg'}">${sign(S.s_plpct)}${S.s_plpct}%</div><div class="l">Stocks</div><div class="h">${inr(S.s_pres)} &middot; ${inrS(S.s_pl)}</div></div>
+<div class="card"><div class="v ${S.m_pl>=0?'pos':'neg'}">${sign(S.m_plpct)}${S.m_plpct}%</div><div class="l">Mutual funds</div><div class="h">${inr(S.m_pres)} &middot; ${inrS(S.m_pl)}</div></div>
+<div class="card"><div class="v">${inr(S.sip_monthly)}</div><div class="l">Monthly SIPs</div><div class="h">${S.sip_count} active &middot; ${inr(S.sip_monthly*12)} a year</div></div>`;
 
 (function(){
   const ms=DATA.my_stocks;
   const losers=ms.filter(x=>x.plpct<-15).sort((a,b)=>a.plpct-b.plpct);
   const topsec=Object.entries(DATA.sector_w)[0];
-  let h=`<b>What's dragging your stocks:</b> `;
-  h+=losers.slice(0,5).map(x=>`${x.sym} ${pct(x.plpct)}`).join(' · ');
-  h+=`<br><b>Concentration:</b> biggest sector bet is <b>${topsec[0]}</b> at ${topsec[1]}% of equity. `;
-  const trim=ms.filter(x=>x.read=='TRIM/REPLACE').map(x=>x.sym);
-  if(trim.length)h+=`Engine flags <b>${trim.join(', ')}</b> for trim/replace (weak rank + downtrend).`;
-  document.getElementById('diag').innerHTML=h;
+  const mfShare=S.t_pres?Math.round(100*S.m_pres/S.t_pres):0;
+  let h=`<b>Split:</b> ${mfShare}% mutual funds, ${100-mfShare}% direct stocks.`;
+  if(losers.length) h+=`<br><b>What's dragging your stocks:</b> `+losers.slice(0,5).map(x=>`${esc(x.sym)} ${pct(x.plpct)}%`).join(' &middot; ');
+  if(topsec) h+=`<br><b>Concentration:</b> biggest sector is <b>${esc(topsec[0])}</b> at ${topsec[1]}% of your stocks. `;
+  const trim=ms.filter(x=>x.read==='TRIM/REPLACE').map(x=>x.sym);
+  if(trim.length) h+=`The screen flags <b>${trim.map(esc).join(', ')}</b> as weak rank or downtrend.`;
+  $('diag').innerHTML=h;
 })();
 
-function rowMyStock(r){return `<tr class="${r.held?'held':''}">
-<td>${r.sym}</td><td class="l dim">${r.sector}</td><td>${r.qty}</td><td>${r.avg}</td><td>${r.px}</td>
-<td>${pct(r.plpct)}</td><td>${pct(r.pl)}</td><td>${r.wt}</td>
-<td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td>
-<td><span class="tag ${cl(r.tag)}">${r.tag}</span></td>
-<td><span class="read ${cl(r.read)}">${r.read}</span></td>
-<td class="l">${r.rep?'→ '+r.rep:'<span class=dim>—</span>'}</td></tr>`;}
-document.querySelector('#myst tbody').innerHTML=DATA.my_stocks.map(rowMyStock).join('');
+// ---- sortable + filterable tables ----
+function makeTable(id,rowsFn,rowFn,footFn){
+  const st={k:null,asc:true};
+  function render(){
+    let rows=rowsFn();
+    if(st.k){ rows=[...rows].sort((a,b)=>{let x=a[st.k],y=b[st.k];
+      if(x==null) return 1; if(y==null) return -1;
+      return typeof x==='string'?(st.asc?x.localeCompare(y):y.localeCompare(x)):(st.asc?x-y:y-x);}); }
+    const tb=document.querySelector(`#${id} tbody`);
+    const cols=document.querySelectorAll(`#${id} thead th`).length;
+    tb.innerHTML=rows.length?rows.map(rowFn).join(''):`<tr><td colspan="${cols}" class="empty">Nothing matches these filters.</td></tr>`;
+    if(footFn){ const tf=document.querySelector(`#${id} tfoot`); if(tf) tf.innerHTML=rows.length?footFn(rows):''; }
+    document.querySelectorAll(`#${id} th[data-k]`).forEach(th=>{ th.textContent=th.textContent.replace(/ [▲▼]$/,''); if(th.dataset.k===st.k) th.textContent+=st.asc?' ▲':' ▼'; });
+    return rows.length;
+  }
+  document.querySelectorAll(`#${id} th[data-k]`).forEach(th=>th.onclick=()=>{ const k=th.dataset.k; st.asc=st.k===k?!st.asc:false; st.k=k; render(); });
+  return render;
+}
 
-function rowMyMf(r){return `<tr>
-<td>${r.name}</td><td class="l dim">${r.cat}</td><td>${r.avg}</td><td>${r.nav}</td>
-<td>${pct(r.plpct)}</td><td>${pct(r.pl)}</td><td>${r.wt}</td><td>${pct(r.r1y)}</td>
+// holdings
+const hf=()=>({q:$('hq').value.trim().toLowerCase(),read:$('hread').value,loss:$('hloss').checked});
+const stockRows=()=>{ const f=hf(); return DATA.my_stocks.filter(r=>(!f.q||(r.sym+' '+r.sector).toLowerCase().includes(f.q))&&(!f.read||r.read===f.read)&&(!f.loss||r.pl<0)); };
+const mfRows=()=>{ const f=hf(); return DATA.my_mf.filter(r=>(!f.q||(r.name+' '+r.cat).toLowerCase().includes(f.q))&&(!f.read||r.read===f.read)&&(!f.loss||r.pl<0)); };
+const sum=(rows,k)=>rows.reduce((a,r)=>a+(r[k]||0),0);
+const renderSt=makeTable('myst',stockRows,r=>`<tr>
+<td>${esc(r.sym)}</td><td class="l dim">${esc(r.sector)}</td><td>${r.qty}</td><td>${r.avg}</td><td>${r.px}</td>
+<td>${pct(r.r1d)}</td><td>${money(r.day_pl)}</td><td>${inr(r.inv)}</td><td>${inr(r.pres)}</td>
+<td>${pct(r.plpct)}</td><td>${money(r.pl)}</td><td>${r.wt}</td>
 <td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td>
-<td><span class="read ${cl(r.read)}">${r.read}</span></td></tr>`;}
-document.querySelector('#mymf tbody').innerHTML=DATA.my_mf.map(rowMyMf).join('');
+<td><span class="tag ${cl(r.tag)}">${esc(r.tag)}</span></td>
+<td><span class="tag ${cl(r.read)}">${esc(r.read)}</span></td>
+<td class="l">${r.rep?'&rarr; '+esc(r.rep):'<span class=dim>—</span>'}</td></tr>`,
+rows=>{ const inv=sum(rows,'inv'),pres=sum(rows,'pres'); return `<tr><td>Total</td><td class="l dim">${rows.length} stocks</td><td></td><td></td><td></td><td></td><td>${money(sum(rows,'day_pl'))}</td><td>${inr(inv)}</td><td>${inr(pres)}</td><td>${pct(inv?Math.round(1000*(pres/inv-1))/10:0)}</td><td>${money(pres-inv)}</td><td colspan="5"></td></tr>`; });
+const renderMf=makeTable('mymf',mfRows,r=>`<tr>
+<td>${esc(r.name)}</td><td class="l dim">${esc(r.cat)}</td><td>${r.units}</td><td>${r.avg}</td><td>${r.nav}</td>
+<td>${money(r.day_pl)}</td><td>${inr(r.inv)}</td><td>${inr(r.pres)}</td>
+<td>${pct(r.plpct)}</td><td>${money(r.pl)}</td><td>${r.wt}</td>
+<td>${r.sip_amount?inr(r.sip_amount):'<span class=dim>—</span>'}</td><td>${pct(r.r1y)}</td>
+<td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td>
+<td><span class="tag ${cl(r.read)}">${esc(r.read)}</span></td></tr>`,
+rows=>{ const inv=sum(rows,'inv'),pres=sum(rows,'pres'); return `<tr><td>Total</td><td class="l dim">${rows.length} funds</td><td></td><td></td><td></td><td>${money(sum(rows,'day_pl'))}</td><td>${inr(inv)}</td><td>${inr(pres)}</td><td>${pct(inv?Math.round(1000*(pres/inv-1))/10:0)}</td><td>${money(pres-inv)}</td><td></td><td>${inr(sum(rows,'sip_amount'))}</td><td colspan="3"></td></tr>`; });
+function renderHoldings(){ const a=renderSt(), b=renderMf(); $('stcount').textContent=a+' of '+DATA.my_stocks.length; $('mfcount').textContent=b+' of '+DATA.my_mf.length; }
+['hq','hread','hloss'].forEach(id=>$(id).addEventListener('input',renderHoldings));
+renderHoldings();
 
-document.getElementById('ssum').innerHTML=`
+// SIPs
+const sipRows=DATA.sips.map(r=>({...r,days:r.next&&r.next!=='None'?daysTo(r.next):null,
+  status:r.nav_error?'ERROR':(r.pending.length?'PENDING':(r.n_added?'ADDED':'UPCOMING'))}));
+$('sipcards').innerHTML=`
+<div class="card"><div class="v">${inr(S.sip_monthly)}</div><div class="l">Every month</div><div class="h">${S.sip_count} active SIPs</div></div>
+<div class="card"><div class="v">${inr(S.sip_monthly*12)}</div><div class="l">Every year</div><div class="h">At current amounts</div></div>
+<div class="card"><div class="v">${inr(S.sip_added)}</div><div class="l">Added automatically</div><div class="h">${S.sip_n_added} instalment${S.sip_n_added===1?'':'s'} since ${fmtDate(S.holdings_asof)}</div></div>
+<div class="card"><div class="v">${(()=>{const n=sipRows.filter(r=>r.days!=null).sort((a,b)=>a.days-b.days)[0]; return n?(n.days===0?'Today':n.days+' days'):'—';})()}</div><div class="l">Next instalment</div><div class="h">${(()=>{const n=sipRows.filter(r=>r.days!=null).sort((a,b)=>a.days-b.days)[0]; return n?esc(n.name)+' &middot; '+fmtDate(n.next):'';})()}</div></div>`;
+$('sipnote').innerHTML=`<b>How the automatic update works:</b> your units start from the Kite statement of <b>${fmtDate(S.holdings_asof)}</b>. Every SIP instalment dated after that is added on its own at the fund's real NAV for that day (minus the 0.005% stamp duty), so the value, units and P&amp;L above move without anyone typing anything. An instalment is only counted once its NAV is published. If a debit ever bounces, or you change an amount, download a fresh statement: importing it resets the starting point and nothing is double-counted.`;
+const renderSip=makeTable('siptbl',()=>sipRows,r=>`<tr>
+<td>${esc(r.name)}</td><td>${inr(r.amount)}</td><td>${r.day}${['th','st','nd','rd'][(r.day%10>3||Math.floor(r.day%100/10)===1)?0:r.day%10]}</td>
+<td>${fmtDate(r.next)}</td><td>${r.days==null?'—':(r.days===0?'today':r.days+' d')}</td><td>${r.n_added}</td>
+<td>${r.units_added}</td><td>${r.amount_added?inr(r.amount_added):'<span class=dim>—</span>'}</td>
+<td class="l"><span class="tag ${r.status}">${r.status==='ERROR'?'NAV ERROR':r.status}</span>${r.pending.length?' <span class=dim>'+r.pending.map(fmtDate).join(', ')+'</span>':''}${r.nav_error?' <span class=dim>'+esc(r.nav_error)+'</span>':''}</td></tr>`,
+rows=>`<tr><td>Total</td><td>${inr(sum(rows,'amount'))}</td><td colspan="4"></td><td></td><td>${inr(sum(rows,'amount_added'))}</td><td></td></tr>`);
+renderSip();
+$('siplog').querySelector('tbody').innerHTML=DATA.sip_log.length?DATA.sip_log.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="l">${esc(r.fund)}</td><td>${inr(r.amount)}</td><td>${r.nav}</td><td>${fmtDate(r.nav_date)}</td><td>${r.units}</td></tr>`).join(''):
+  `<tr><td colspan="6" class="empty">No instalments since ${fmtDate(S.holdings_asof)} yet. The first ones will appear here after their NAV is published.</td></tr>`;
+
+// Tax-loss
+(function(){
+  const nowIst=new Date(Date.now()+IST); const fyEndYear=nowIst.getUTCMonth()>2?nowIst.getUTCFullYear()+1:nowIst.getUTCFullYear();
+  const dLeft=daysTo(fyEndYear+'-03-31');
+  const losers=DATA.my_stocks.filter(r=>r.pl<0);
+  $('taxcards').innerHTML=`
+  <div class="card"><div class="v neg">${inr(S.st_loss)}</div><div class="l">Short-term losses</div><div class="h">Unbooked, on stocks</div></div>
+  <div class="card"><div class="v neg">${inr(S.lt_loss)}</div><div class="l">Long-term losses</div><div class="h">Unbooked, on stocks</div></div>
+  <div class="card"><div class="v">${losers.length} of ${DATA.my_stocks.length}</div><div class="l">Stocks below cost</div><div class="h">From the latest prices</div></div>
+  <div class="card"><div class="v">${dLeft} days</div><div class="l">Until 31 Mar ${fyEndYear}</div><div class="h">End of this financial year</div></div>`;
+  const render=makeTable('taxtbl',()=>DATA.my_stocks.filter(r=>r.pl<0).sort((a,b)=>a.pl-b.pl),r=>`<tr>
+  <td>${esc(r.sym)}</td><td>${r.qty}</td><td>${r.ltq}</td><td>${money(r.pl)}</td><td>${r.st_pl?money(r.st_pl):'<span class=dim>—</span>'}</td><td>${r.lt_pl?money(r.lt_pl):'<span class=dim>—</span>'}</td><td>${pct(r.plpct)}</td>
+  <td class="l"><span class="tag ${cl(r.read)}">${esc(r.read)}</span></td></tr>`,
+  rows=>`<tr><td>Total</td><td></td><td></td><td>${money(sum(rows,'pl'))}</td><td>${money(sum(rows,'st_pl'))}</td><td>${money(sum(rows,'lt_pl'))}</td><td colspan="2"></td></tr>`);
+  render();
+})();
+
+// Stocks screen
+$('ssum').innerHTML=`
 <div class="card"><div class="v">${S.n_screened}</div><div class="l">Stocks screened</div></div>
 <div class="card"><div class="v pos">${S.n_up}</div><div class="l">In confirmed uptrend</div></div>
 <div class="card"><div class="v">${S.breadth}%</div><div class="l">Market breadth</div></div>
-<div class="card"><div class="v">${S.top}</div><div class="l">Top composite score</div></div>`;
-
+<div class="card"><div class="v">${esc(S.top)}</div><div class="l">Top composite score</div></div>`;
 function miniList(el,rows,key){
-  document.getElementById(el).innerHTML='<table>'+rows.map(r=>`<tr class="${r.held?'held':''}">
-  <td class="l">${r.sym}${r.held?' <span class=dim>•held</span>':''}</td><td class="l dim">${r.sector}</td>
-  <td>${pct(r[key])}</td><td><span class="tag ${cl(r.tag)}">${r.tag}</span></td></tr>`).join('')+'</table>';
+  $(el).innerHTML='<table class="mini">'+rows.map(r=>`<tr class="${r.held?'held':''}">
+  <td class="l">${esc(r.sym)}${r.held?' <span class=dim>&middot; held</span>':''}</td><td class="l dim">${esc(r.sector)}</td>
+  <td>${pct(r[key])}%</td><td><span class="tag ${cl(r.tag)}">${esc(r.tag)}</span></td></tr>`).join('')+'</table>';
 }
-miniList('td',DATA.top_day,'r1d');miniList('tw',DATA.top_week,'r1w');
-miniList('tm',DATA.top_month,'r1m');
-document.getElementById('stb').innerHTML='<table>'+DATA.stable.map(r=>`<tr class="${r.held?'held':''}">
-<td class="l">${r.sym}</td><td class="l dim">${r.sector}</td><td>1Y ${pct(r.r1y)}</td>
+miniList('td',DATA.top_day,'r1d'); miniList('tw',DATA.top_week,'r1w'); miniList('tm',DATA.top_month,'r1m');
+$('stb').innerHTML='<table class="mini">'+DATA.stable.map(r=>`<tr class="${r.held?'held':''}">
+<td class="l">${esc(r.sym)}</td><td class="l dim">${esc(r.sector)}</td><td>1Y ${pct(r.r1y)}%</td>
 <td>DD ${r.maxdd}%</td><td><b>${r.stab}</b></td></tr>`).join('')+'</table>';
-
-function rowStock(r){return `<tr class="${r.held?'held':''}">
-<td>${r.sym}</td><td class="l dim">${r.sector}</td><td>${r.px}</td><td>${pct(r.r1d)}</td>
+const sRows=()=>{ const q=$('sq').value.trim().toLowerCase(), t=$('stag').value, h=$('sheld').checked;
+  return DATA.stocks_all.filter(r=>(!q||(r.sym+' '+r.sector).toLowerCase().includes(q))&&(!t||r.tag===t)&&(!h||r.held)); };
+const renderS=makeTable('alltbl',sRows,r=>`<tr class="${r.held?'held':''}">
+<td>${esc(r.sym)}</td><td class="l dim">${esc(r.sector)}</td><td>${r.px}</td><td>${pct(r.r1d)}</td>
 <td>${pct(r.r1w)}</td><td>${pct(r.r1m)}</td><td>${pct(r.r3m)}</td><td>${pct(r.r6m)}</td>
 <td>${pct(r.r1y)}</td><td>${r.adx}</td><td>${r.vol}</td><td>${r.sharpe}</td><td>${r.maxdd}</td>
 <td><b>${r.score}</b></td><td>${r.pctile}</td>
-<td><span class="tag ${cl(r.tag)}">${r.tag}</span></td></tr>`;}
-document.querySelector('#alltbl tbody').innerHTML=DATA.stocks_all.map(rowStock).join('');
+<td><span class="tag ${cl(r.tag)}">${esc(r.tag)}</span></td></tr>`);
+function rS(){ $('scount').textContent=renderS()+' of '+DATA.stocks_all.length; }
+['sq','stag','sheld'].forEach(id=>$(id).addEventListener('input',rS)); rS();
 
-function rowFund(r){return `<tr class="${r.held?'held':''}">
-<td>${r.name}</td><td class="l dim">${r.cat}</td><td>${r.nav}</td><td>${pct(r.r1m)}</td>
+// Funds screen
+[...new Set(DATA.funds_all.map(f=>f.cat))].sort().forEach(c=>{ const o=document.createElement('option'); o.textContent=c; $('fcat').appendChild(o); });
+const fRows=()=>{ const q=$('fq').value.trim().toLowerCase(), c=$('fcat').value, h=$('fheld').checked;
+  return DATA.funds_all.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(!c||r.cat===c)&&(!h||r.held)); };
+const renderF=makeTable('ftbl',fRows,r=>`<tr class="${r.held?'held':''}">
+<td>${esc(r.name)}</td><td class="l dim">${esc(r.cat)}</td><td>${r.nav}</td><td>${pct(r.r1m)}</td>
 <td>${pct(r.r3m)}</td><td>${pct(r.r6m)}</td><td>${pct(r.r1y)}</td><td>${pct(r.r3y)}</td>
 <td>${pct(r.r5y)}</td><td>${r.sharpe==null?'—':r.sharpe}</td><td>${r.maxdd==null?'—':r.maxdd}</td>
-<td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td></tr>`;}
-document.querySelector('#ftbl tbody').innerHTML=DATA.funds_all.map(rowFund).join('');
+<td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td></tr>`);
+['fq','fcat','fheld'].forEach(id=>$(id).addEventListener('input',renderF)); renderF();
 
-function makeSortable(tableId,data,rowFn){
-  const asc={};
-  document.querySelectorAll(`#${tableId} th`).forEach(th=>th.onclick=()=>{
-    const k=th.dataset.k;asc[k]=!asc[k];
-    const s=[...data].sort((a,b)=>{let x=a[k],y=b[k];
-      if(x==null)return 1;if(y==null)return -1;
-      return typeof x==='string'?(asc[k]?x.localeCompare(y):y.localeCompare(x)):(asc[k]?x-y:y-x);});
-    document.querySelector(`#${tableId} tbody`).innerHTML=s.map(rowFn).join('');
-  });
+// ---- charts ----
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const PIE=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#8a63d2','#6b7280'];
+function pieData(obj){
+  const e=Object.entries(obj); if(e.length<=7) return e;
+  const top=e.slice(0,6), rest=e.slice(6).reduce((a,x)=>a+x[1],0); return top.concat([['Other',Math.round(rest*10)/10]]);
 }
-makeSortable('alltbl',DATA.stocks_all,rowStock);
-makeSortable('ftbl',DATA.funds_all,rowFund);
-makeSortable('myst',DATA.my_stocks,rowMyStock);
-makeSortable('mymf',DATA.my_mf,rowMyMf);
+function drawCharts(){
+  if(!window.Plotly){ ['allocchart','plchart','secchart','catchart'].forEach(id=>$(id).innerHTML='<div class="empty">Charts need the Plotly library, which did not load. Check your connection.</div>'); return; }
+  const L=(h,extra)=>Object.assign({paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{color:css('--ink-3'),size:11},margin:{l:10,r:10,t:6,b:6},height:h,showlegend:false},extra||{});
+  const C={displayModeBar:false,responsive:true};
+  const surf=css('--surface'); const narrow=$('ov').clientWidth<640;
+  const donut=(id,entries,hover)=>Plotly.react(id,[{labels:entries.map(x=>x[0]),values:entries.map(x=>x[1]),type:'pie',hole:.55,sort:false,
+    marker:{colors:PIE,line:{color:surf,width:2}},textinfo:narrow?'percent':'label+percent',textposition:narrow?'inside':'outside',
+    insidetextorientation:'horizontal',textfont:{size:11,color:narrow?'#fff':css('--ink-2')},hovertemplate:hover}],
+    L(narrow?360:300,{margin:narrow?{l:8,r:8,t:8,b:8}:{l:30,r:30,t:24,b:24},showlegend:narrow,
+      legend:{orientation:'h',y:-0.05,font:{size:11,color:css('--ink-2')}}}),C);
+  const alloc=[['Stocks',S.s_pres]].concat(Object.entries(DATA.my_mf.reduce((a,m)=>{a[m.cat]=(a[m.cat]||0)+m.pres;return a;},{})).sort((a,b)=>b[1]-a[1]));
+  donut('allocchart',alloc,'%{label}<br>₹%{value:,.0f} (%{percent})<extra></extra>');
+  donut('secchart',pieData(DATA.sector_w),'%{label}<br>%{value}% of stocks<extra></extra>');
+  donut('catchart',pieData(DATA.mf_cat_w),'%{label}<br>%{value}% of funds<extra></extra>');
+  const cut=narrow?16:28;
+  const items=DATA.my_stocks.map(r=>({n:r.sym,v:r.pl})).concat(DATA.my_mf.map(r=>({n:r.name.length>cut?r.name.slice(0,cut-1)+'…':r.name,v:r.pl}))).sort((a,b)=>a.v-b.v);
+  const lo=Math.min(0,...items.map(x=>x.v)), hi=Math.max(0,...items.map(x=>x.v)), padX=(hi-lo)*(narrow?0.45:0.2);
+  Plotly.react('plchart',[{type:'bar',orientation:'h',y:items.map(x=>x.n),x:items.map(x=>x.v),
+    marker:{color:items.map(x=>x.v>=0?css('--pos'):css('--neg'))},
+    text:items.map(x=>inrS(x.v)),textposition:'outside',cliponaxis:false,textfont:{size:10,color:css('--ink-2')},
+    hovertemplate:'%{y}<br>%{text}<extra></extra>'}],
+    L(Math.max(300,items.length*19+40),{margin:{l:narrow?8:12,r:12,t:6,b:24},bargap:.25,
+      xaxis:{range:[lo-(lo<0?padX:0),hi+(hi>0?padX:0)],zeroline:true,zerolinecolor:css('--ink-3'),gridcolor:css('--line-soft'),tickfont:{size:10}},
+      yaxis:{automargin:true,tickfont:{size:10.5,color:css('--ink-2')}}}),C);
+}
 
-const PL={paper_bgcolor:'#161b22',plot_bgcolor:'#161b22',font:{color:'#8b949e',size:11},margin:{l:10,r:10,t:10,b:10},height:300};
-Plotly.newPlot('secchart',[{labels:Object.keys(DATA.sector_w),values:Object.values(DATA.sector_w),
-  type:'pie',hole:.5,textinfo:'label+percent',textfont:{size:10}}],PL,{displayModeBar:false,responsive:true});
-Plotly.newPlot('catchart',[{labels:Object.keys(DATA.mf_cat_w),values:Object.values(DATA.mf_cat_w),
-  type:'pie',hole:.5,textinfo:'label+percent',textfont:{size:10}}],PL,{displayModeBar:false,responsive:true});
+// ---- header buttons ----
+$('theme').onclick=()=>{
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  if(light) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme','light');
+  try{ localStorage.setItem('portdash-theme',light?'dark':'light'); }catch(e){}
+  if($('ov').classList.contains('on')) drawCharts();
+};
+$('lockbtn').onclick=()=>location.reload();
+$('csv').onclick=()=>{
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[['type','name','sector_or_category','quantity_or_units','avg','price_or_nav','invested','value','pnl','pnl_pct','weight_pct','read'].join(',')];
+  DATA.my_stocks.forEach(r=>lines.push(['stock',r.sym,r.sector,r.qty,r.avg,r.px,r.inv,r.pres,r.pl,r.plpct,r.wt,r.read].map(q).join(',')));
+  DATA.my_mf.forEach(r=>lines.push(['mutual fund',r.name,r.cat,r.units,r.avg,r.nav,r.inv,r.pres,r.pl,r.plpct,r.wt,r.read].map(q).join(',')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='portfolio-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('CSV downloaded');
+};
 
-document.getElementById('foot').innerHTML=`
-<b>Composite score</b> = momentum (1M/3M/6M) + risk-adjusted (Sharpe) + trend strength (ADX) − volatility, z-scored across Nifty 500, with trend-alignment bonus.
-<b>Stable winners</b> rank low-volatility, low-drawdown, consistent compounders (above 200DMA, ≥60% positive months).
-<b>BUY-WATCH</b>=trending &amp; not over-extended · <b>EXTENDED</b>=&gt;20% above 50DMA · <b>AVOID</b>=weak/downtrend.
-<b>Keep/Trim</b> on holdings blends rank-percentile + signal. Replace candidate = top-ranked same-sector stock you don't own.<br>
-⚠️ <b>EOD / ~15-min delayed free data.</b> Fundamentals (valuation, earnings quality) not yet included — momentum/risk/trend only. MF NAVs are end-of-day. This is a screening aid, <b>not investment advice</b> — size and risk-manage your own trades.`;
+$('foot').innerHTML=`
+<b>Composite score</b> = momentum (1M/3M/6M) + risk-adjusted (Sharpe) + trend strength (ADX) &minus; volatility, z-scored across the Nifty 500, with a trend-alignment bonus.
+<b>Stable winners</b> = low volatility, low drawdown, consistent compounders (above the 200-day average, at least 60% positive months).
+<b>BUY-WATCH</b> = trending and not over-extended &middot; <b>EXTENDED</b> = more than 20% above the 50-day average &middot; <b>AVOID</b> = weak or in a downtrend.
+<b>Keep / Trim</b> blends rank percentile and signal; the replace candidate is the top-ranked same-sector stock you do not own.
+<b>Latest day</b> uses each stock's last daily move and each fund's last NAV change.<br>
+EOD / about 15-minute delayed free data. No fundamentals (valuation, earnings). Screening aid only, not investment advice.`;
+
+let startTab='ov'; try{ const t=localStorage.getItem('portdash-tab'); if(t&&document.getElementById(t)) startTab=t; }catch(e){}
+showTab(startTab);
 } // end boot
 </script></body></html>

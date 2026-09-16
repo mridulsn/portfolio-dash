@@ -5,12 +5,17 @@ name: refresh-dashboard
 # Mon–Fri. GitHub schedules are best-effort and may be delayed a few minutes under load.
 on:
   schedule:
-    - cron: '*/5 3-10 * * 1-5'
+    - cron: '*/5 3-10 * * 1-5'   # market hours, every 5 min
+    - cron: '30 17 * * *'        # 23:00 IST every night: picks up the day's MF NAVs and SIP instalments
   workflow_dispatch: {}        # allows manual "Run workflow" from the Actions tab
 
 concurrency:
   group: refresh-dashboard
   cancel-in-progress: true     # if a run is still going when the next fires, drop the stale one
+
+permissions:
+  contents: read
+  actions: write               # lets the keep-alive step re-enable this workflow
 
 jobs:
   build-and-deploy:
@@ -18,6 +23,13 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+
+      # GitHub silently disables scheduled workflows after 60 days without repository activity
+      # (this happened on 2026-08-10). Re-enabling through the API resets that clock every run.
+      - name: Keep the schedule alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/refresh.yml/enable" || echo "keep-alive call failed (non-fatal)"
 
       - uses: actions/setup-python@v5
         with:

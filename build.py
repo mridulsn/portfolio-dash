@@ -33,9 +33,16 @@ if not _h:
 if not _h:
     raise SystemExit("No holdings: set the HOLDINGS_JSON env var or create holdings.local.json")
 _j = json.loads(_h)
-STOCK_HOLDINGS = [tuple(x) for x in _j["stocks"]]
-MF_HOLDINGS    = [tuple(x) for x in _j["mf"]]
-HELD_SYMS = {s for s,_,_,_ in STOCK_HOLDINGS}
+# stocks: [sym, sector, qty, avg, (long-term qty), (isin)]  mf: [name, isin, cat, units, avg]
+STOCK_HOLDINGS = [(x[0], x[1], float(x[2]), float(x[3]), float(x[4]) if len(x) > 4 and x[4] is not None else 0.0)
+                  for x in _j["stocks"]]
+MF_HOLDINGS    = [tuple(x[:5]) for x in _j["mf"]]
+# sips: [isin, monthly amount, day of month, display name]. Instalments dated AFTER "asof"
+# (the statement date) are added automatically from the real NAV of the instalment day.
+SIPS = [dict(isin=x[0], amount=float(x[1]), day=int(x[2]), name=(x[3] if len(x) > 3 else x[0]))
+        for x in _j.get("sips", [])]
+HOLDINGS_ASOF = _j.get("asof")
+HELD_SYMS = {x[0] for x in STOCK_HOLDINGS}
 
 PASSWORD = os.environ.get("DASH_PASSWORD")
 if not PASSWORD:
@@ -43,11 +50,33 @@ if not PASSWORD:
     if os.path.exists(p): PASSWORD = open(p,encoding="utf-8").read().strip()
 if not PASSWORD: raise SystemExit("DASH_PASSWORD not set")
 
+# --from-cache: skip every download and re-render template.html from last_payload.json (local only)
+FROM_CACHE = "--from-cache" in sys.argv
+CACHE = os.path.join(HERE, "last_payload.json")
+
+def write_encrypted(payload):
+    ITER=200_000; salt,iv=os.urandom(16),os.urandom(12)
+    key=hashlib.pbkdf2_hmac("sha256",PASSWORD.encode(),salt,ITER,dklen=32)
+    ct=AESGCM(key).encrypt(iv,json.dumps(payload).encode(),None)
+    enc=dict(salt=base64.b64encode(salt).decode(),iv=base64.b64encode(iv).decode(),
+             ct=base64.b64encode(ct).decode(),iter=ITER)
+    with open(TPL_PATH,encoding="utf-8") as f: tpl=f.read()
+    assert tpl.count("/*__DATA__*/")==1, "template must contain exactly one /*__DATA__*/ marker"
+    html=tpl.replace("/*__DATA__*/","const ENC="+json.dumps(enc)+";")
+    tmp=OUT+".tmp"
+    with open(tmp,"w",encoding="utf-8") as f: f.write(html)
+    os.replace(tmp,OUT)
+    print("WROTE",OUT)
+
+if FROM_CACHE:
+    write_encrypted(json.load(open(CACHE,encoding="utf-8")))
+    raise SystemExit(0)
+
 # ----------------------------------------------------------------------------- 1. universe (bundled)
 n500 = pd.read_csv(N500_CSV)
 sym2sector = dict(zip(n500["Symbol"], n500["Industry"]))
 universe = sorted(set(n500["Symbol"]) | HELD_SYMS)
-for s,sec,_,_ in STOCK_HOLDINGS: sym2sector.setdefault(s, sec)
+for s,sec,*_ in STOCK_HOLDINGS: sym2sector.setdefault(s, sec)
 print(f"universe: {len(universe)} symbols")
 
 # ----------------------------------------------------------------------------- 2. prices (with retry)
@@ -136,14 +165,19 @@ isin2code,code2name,name_index={},{},[]
 for ln in amfi.splitlines():
     p=ln.split(';')
     if len(p)>=6 and p[0].strip().isdigit():
-        code=p[0].strip(); code2name[code]=p[3].strip(); name_index.append((code,p[3].strip().lower()))
+        code=p[0].strip(); nm=' '.join(x.strip() for x in p[3:len(p)-2] if x.strip() and x.strip()!='-')   # AMFI split plan/option into their own fields in 2026
+        code2name[code]=nm; name_index.append((code,nm.lower()))
         for i in (p[1].strip(),p[2].strip()):
             if i and i!='-': isin2code[i]=code
+NAV_CACHE={}
 def hist(code):
+    if code in NAV_CACHE: return NAV_CACHE[code]
     j=json.loads(get(f'https://api.mfapi.in/mf/{code}',timeout=30))
     s=pd.DataFrame(j['data']); s['date']=pd.to_datetime(s['date'],format='%d-%m-%Y')
     s['nav']=pd.to_numeric(s['nav'],errors='coerce')
-    return s.dropna().sort_values('date').set_index('date')['nav']
+    s=s.dropna().sort_values('date').set_index('date')['nav']
+    NAV_CACHE[code]=s
+    return s
 def cagr(s,days):
     if len(s)<2: return np.nan
     w=s[s.index<=s.index[-1]-pd.Timedelta(days=days)]
@@ -155,7 +189,9 @@ def fund_metrics(code,name,cat):
     sharpe=float(ret.mean()/ret.std()*np.sqrt(252)) if ret.std()>0 else np.nan
     cum=(1+ret).cumprod(); maxdd=float((cum/cum.cummax()-1).min())
     mm=s.resample('ME').last().pct_change().dropna().iloc[-36:]
-    return dict(code=code,name=name,cat=cat,nav=round(float(s.iloc[-1]),2),
+    return dict(code=code,name=name,cat=cat,nav=round(float(s.iloc[-1]),4),
+        nav_prev=float(s.iloc[-2]) if len(s)>1 else float(s.iloc[-1]),nav_date=str(s.index[-1].date()),
+        nav_prev_date=str(s.index[-2].date()) if len(s)>1 else None,
         r1m=cagr(s,30),r3m=cagr(s,91),r6m=cagr(s,182),r1y=cagr(s,365),r3y=cagr(s,1095),r5y=cagr(s,1825),
         sharpe=sharpe,maxdd=maxdd,consist=float((mm>0).mean()) if len(mm) else np.nan)
 def find_code(kw):
@@ -187,6 +223,8 @@ for cat,lst in CURATED.items():
         try: m=fund_metrics(code,code2name[code],cat); m['held']=False; funds.append(m)
         except Exception: pass
 print(f"funds: {len(funds)} ({sum(f['held'] for f in funds)} held)")
+if len(funds)-sum(f['held'] for f in funds)==0:
+    print("WARNING: no curated comparison funds matched - AMFI name format may have changed")
 fd=pd.DataFrame(funds); fd['rank_metric']=fd['r1y'].fillna(fd['r6m'])
 fd['cat_pctile']=fd.groupby('cat')['rank_metric'].rank(pct=True)*100
 def packf(df):
@@ -204,7 +242,7 @@ funds_all=packf(fd)
 # ----------------------------------------------------------------------------- 4. my portfolio
 dmap={r['sym']:r for r in stocks_all}
 my_stocks=[]; invested_s=present_s=0.0
-for sym,sec,qty,avg in STOCK_HOLDINGS:
+for sym,sec,qty,avg,ltq in STOCK_HOLDINGS:
     r=dmap.get(sym); px=r['px'] if r else avg
     inv=qty*avg; pres=qty*px; invested_s+=inv; present_s+=pres
     rep=None
@@ -216,19 +254,64 @@ for sym,sec,qty,avg in STOCK_HOLDINGS:
     elif r['pctile']>=60 and r['tag'] in("BUY-WATCH","EXTENDED"): read="KEEP"
     elif r['pctile']<35 or r['tag']=="AVOID": read="TRIM/REPLACE"
     else: read="HOLD"
+    r1d=(r['r1d'] if r else 0) or 0
+    day_pl=pres-pres/(1+r1d/100) if r1d>-100 else 0
+    ltq=min(ltq,qty); lt_pl=(pres-inv)*(ltq/qty) if qty else 0
     my_stocks.append(dict(sym=sym,sector=sec,qty=qty,avg=round(avg,2),px=px,inv=round(inv),pres=round(pres),
+        r1d=r1d,day_pl=round(day_pl),ltq=ltq,lt_pl=round(lt_pl),st_pl=round((pres-inv)-lt_pl),
         pl=round(pres-inv),plpct=round((px/avg-1)*100,1),wt=0,score=r['score'] if r else None,
         pctile=r['pctile'] if r else None,tag=r['tag'] if r else "—",read=read,rep=rep))
 for m in my_stocks: m['wt']=round(100*m['pres']/present_s,1)
 my_stocks.sort(key=lambda x:x['pl'])
+# ---- SIP auto-accrual: every instalment after the statement date, priced at its real NAV ----
+import calendar
+now_ist=dt.datetime.now(dt.timezone.utc)+dt.timedelta(hours=5,minutes=30)
+today_ist=now_ist.date()
+asof_d=dt.date.fromisoformat(HOLDINGS_ASOF) if HOLDINGS_ASOF else today_ist
+STAMP_DUTY=0.00005   # 0.005% on MF purchases
+sip_rows=[]; sip_log=[]; accrual={}
+for sp in SIPS:
+    code=isin2code.get(sp['isin']); s_nav=None; nav_err=None
+    if code:
+        try: s_nav=hist(code)
+        except Exception as e: nav_err=repr(e)[:80]
+    else: nav_err="ISIN not found in AMFI list"
+    y,m=asof_d.year,asof_d.month; u_add=a_add=0.0; n=0; pending=[]; nxt=None
+    while True:
+        d_=dt.date(y,m,min(sp['day'],calendar.monthrange(y,m)[1]))
+        if d_>today_ist: nxt=d_; break
+        if d_>asof_d:
+            w=s_nav[s_nav.index>=pd.Timestamp(d_)] if s_nav is not None else None
+            if w is None or w.empty:
+                pending.append(d_)          # not priced yet (NAV not out, or history failed) - NOT counted
+            else:
+                nav_i=float(w.iloc[0]); u=sp['amount']*(1-STAMP_DUTY)/nav_i
+                u_add+=u; a_add+=sp['amount']; n+=1
+                sip_log.append(dict(date=str(d_),fund=sp['name'],amount=round(sp['amount']),nav=round(nav_i,4),
+                                    nav_date=str(w.index[0].date()),units=round(u,3)))
+        m+=1
+        if m>12: m=1; y+=1
+    accrual[sp['isin']]=(u_add,a_add)
+    sip_rows.append(dict(name=sp['name'],isin=sp['isin'],amount=round(sp['amount']),day=sp['day'],
+        next=str(nxt),pending=[str(x) for x in pending],n_added=n,units_added=round(u_add,3),
+        amount_added=round(a_add),nav_error=nav_err))
+    print(f"SIP {sp['name']}: +{n} instalments, +{u_add:.3f} units, pending {len(pending)}"+(f", NAV ERROR {nav_err}" if nav_err else ""))
+sip_log.sort(key=lambda x:x['date'],reverse=True)
+held_isins={x[1] for x in MF_HOLDINGS}
+extra=[(sp['name'],sp['isin'],"SIP (new fund)",0.0,0.0) for sp in SIPS if sp['isin'] not in held_isins and accrual.get(sp['isin'],(0,0))[0]>0]
+
 hmap={f['name']:f for f in funds_all}; my_mf=[]; invested_m=present_m=0.0
-for name,isin,cat,units,avgn in MF_HOLDINGS:
+for name,isin,cat,units,avgn in list(MF_HOLDINGS)+extra:
     code=isin2code.get(isin); rec=next((f for f in funds if f['code']==code),None) if code else None
-    nav=rec['nav'] if rec else avgn; inv=units*avgn; pres=units*nav; invested_m+=inv; present_m+=pres
+    u_add,a_add=accrual.get(isin,(0.0,0.0))
+    inv=units*avgn+a_add; units=units+u_add; avgn=inv/units if units else avgn
+    nav=rec['nav'] if rec else avgn; pres=units*nav; invested_m+=inv; present_m+=pres
+    day_pl=units*(nav-rec['nav_prev']) if rec else 0.0
     fa=hmap.get(name[:46]); pctile=fa['pctile'] if fa else None
     read="—" if pctile is None else ("KEEP" if pctile>=60 else ("REVIEW" if pctile<35 else "HOLD"))
-    my_mf.append(dict(name=name,cat=cat,units=round(units,2),avg=round(avgn,2),nav=round(nav,2),inv=round(inv),
-        pres=round(pres),pl=round(pres-inv),plpct=round((nav/avgn-1)*100,1),wt=0,
+    my_mf.append(dict(name=name,cat=cat,units=round(units,3),avg=round(avgn,4),nav=round(nav,4),inv=round(inv),
+        day_pl=round(day_pl),nav_date=rec['nav_date'] if rec else None,nav_prev_date=rec['nav_prev_date'] if rec else None,sip_units=round(u_add,3),sip_amount=round(a_add),
+        pres=round(pres),pl=round(pres-inv),plpct=round((pres/inv-1)*100,1) if inv else 0,wt=0,
         r1y=fa['r1y'] if fa else None,pctile=pctile,read=read))
 for m in my_mf: m['wt']=round(100*m['pres']/present_m,1)
 my_mf.sort(key=lambda x:x['pl'])
@@ -245,17 +328,23 @@ summary=dict(
     t_plpct=round(100*((present_s+present_m)/(invested_s+invested_m)-1),2),
     n_up=int((d.a50&d.a200&(d.adx>20)).sum()),n_screened=len(d),
     breadth=round(100*(d.a50&d.a200&(d.adx>20)).sum()/len(d)),top=stocks_all[0]['sym'],last_bar=last_bar,
-    asof=str(dt.datetime.now(dt.timezone.utc).astimezone(dt.timezone(dt.timedelta(hours=5,minutes=30))).strftime("%Y-%m-%d %H:%M IST")))
+    asof=str(dt.datetime.now(dt.timezone.utc).astimezone(dt.timezone(dt.timedelta(hours=5,minutes=30))).strftime("%Y-%m-%d %H:%M IST")),
+    built_utc=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    holdings_asof=HOLDINGS_ASOF,
+    nav_prev_date=min([m['nav_prev_date'] for m in my_mf if m.get('nav_prev_date')] or [None]) if any(m.get('nav_prev_date') for m in my_mf) else None,
+    nav_date=max([m['nav_date'] for m in my_mf if m['nav_date']] or [None]) if any(m['nav_date'] for m in my_mf) else None,
+    day_pl=round(sum(m['day_pl'] for m in my_stocks)+sum(m['day_pl'] for m in my_mf)),
+    s_day_pl=round(sum(m['day_pl'] for m in my_stocks)), m_day_pl=round(sum(m['day_pl'] for m in my_mf)),
+    sip_monthly=round(sum(sp['amount'] for sp in SIPS)), sip_count=len(SIPS),
+    sip_added=round(sum(r['amount_added'] for r in sip_rows)), sip_n_added=sum(r['n_added'] for r in sip_rows),
+    sip_pending=sum(len(r['pending']) for r in sip_rows),
+    lt_loss=round(sum(min(m['lt_pl'],0) for m in my_stocks)), st_loss=round(sum(min(m['st_pl'],0) for m in my_stocks)))
 payload=dict(summary=summary,stocks_all=stocks_all,top_day=top_day,top_week=top_week,top_month=top_month,
-    stable=stable,funds_all=funds_all,my_stocks=my_stocks,my_mf=my_mf,sector_w=sector_w,mf_cat_w=mf_cat_w)
+    stable=stable,funds_all=funds_all,my_stocks=my_stocks,my_mf=my_mf,sector_w=sector_w,mf_cat_w=mf_cat_w,
+    sips=sip_rows,sip_log=sip_log)
 
 # ----------------------------------------------------------------------------- 5. encrypt + write
-ITER=200_000; salt,iv=os.urandom(16),os.urandom(12)
-key=hashlib.pbkdf2_hmac("sha256",PASSWORD.encode(),salt,ITER,dklen=32)
-ct=AESGCM(key).encrypt(iv,json.dumps(payload).encode(),None)
-enc=dict(salt=base64.b64encode(salt).decode(),iv=base64.b64encode(iv).decode(),
-         ct=base64.b64encode(ct).decode(),iter=ITER)
-with open(TPL_PATH,encoding="utf-8") as f: tpl=f.read()
-with open(OUT,"w",encoding="utf-8") as f: f.write(tpl.replace("/*__DATA__*/","const ENC="+json.dumps(enc)+";"))
-print("WROTE",OUT)
+if not os.environ.get("GITHUB_ACTIONS"):
+    with open(CACHE,"w",encoding="utf-8") as f: json.dump(payload,f)   # gitignored; local re-render only
+write_encrypted(payload)
 print(f"Stocks {summary['s_plpct']}% | MF {summary['m_plpct']}% | Total {summary['t_plpct']}% | breadth {summary['breadth']}%")
