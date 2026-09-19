@@ -79,6 +79,13 @@ def main():
                       units, float(r["Average Price"])])
 
     new = {"asof": asof, "stocks": stocks, "mf": funds, "sips": old.get("sips", [])}
+    # Dated purchase lots come from import_tradebook.py. A new statement can change quantities
+    # (new buys, sells), so the old lots are kept but flagged stale until the tradebook is re-run.
+    if old.get("lots"):
+        new["lots"] = old["lots"]
+        new["lots_info"] = dict(old.get("lots_info") or {}, stale_since=asof)
+        print("NOTE: kept purchase dates from the last tradebook import - re-run import_tradebook.py"
+              " so new buys/sells get their dates")
     held = {f[1] for f in funds}
     for s in new["sips"]:
         if s[0] not in held:

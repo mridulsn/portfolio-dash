@@ -69,6 +69,9 @@ tfoot td{font-weight:700;background:var(--surface-2)}
 .EXTENDED,.HOLD,.PENDING{background:var(--amber-soft);color:var(--amber)}
 .AVOID,.TRIMREPLACE,.REVIEW,.ERROR{background:var(--neg-soft);color:var(--neg)}
 .NEUTRAL,.UPCOMING{background:var(--line-soft);color:var(--ink-3)}
+.LOSS,.LTGAIN{background:var(--pos-soft);color:var(--pos)}
+.STGAIN{background:var(--neg-soft);color:var(--neg)}
+.SLAB,.DATENEEDED{background:var(--amber-soft);color:var(--amber)}
 .mini td,.mini th{font-size:12px;padding:6px 8px}
 .empty{padding:22px;text-align:center;color:var(--ink-3)}
 .foot{color:var(--ink-3);font-size:11.5px;margin-top:24px;line-height:1.7;border-top:1px solid var(--line-soft);padding-top:12px}
@@ -108,7 +111,7 @@ tfoot td{font-weight:700;background:var(--surface-2)}
   <div class="tab on" data-p="ov">Overview</div>
   <div class="tab" data-p="hold">Holdings</div>
   <div class="tab" data-p="sip">SIPs</div>
-  <div class="tab" data-p="tax">Tax-loss</div>
+  <div class="tab" data-p="tax">Tax &amp; selling</div>
   <div class="tab" data-p="stocks">Stocks (Nifty 500)</div>
   <div class="tab" data-p="funds">Mutual Funds</div>
 </div>
@@ -139,13 +142,16 @@ tfoot td{font-weight:700;background:var(--surface-2)}
   <th class="l" data-k="sym">Stock</th><th class="l" data-k="sector">Sector</th><th data-k="qty">Qty</th>
   <th data-k="avg">Avg &#8377;</th><th data-k="px">LTP &#8377;</th><th data-k="r1d">Today %</th><th data-k="day_pl">Today &#8377;</th>
   <th data-k="inv">Invested</th><th data-k="pres">Value</th><th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L &#8377;</th>
+  <th data-k="sell">If sold today</th><th data-k="stq">Short-term qty</th><th data-k="nextlt">Turns long-term</th>
   <th data-k="wt">Weight %</th><th data-k="pctile">Rank %ile</th><th data-k="tag">Signal</th>
   <th data-k="read">Read</th><th class="l" data-k="rep">Replace?</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
   <h2>My mutual funds <span class="dim" id="mfcount"></span></h2>
   <div class="tw"><table id="mymf"><thead><tr>
   <th class="l" data-k="name">Fund</th><th class="l" data-k="cat">Category</th><th data-k="units">Units</th><th data-k="avg">Avg NAV</th>
   <th data-k="nav">NAV</th><th data-k="day_pl">Last NAV move &#8377;</th><th data-k="inv">Invested</th><th data-k="pres">Value</th>
-  <th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L &#8377;</th><th data-k="wt">Weight %</th>
+  <th data-k="plpct">P&amp;L %</th><th data-k="pl">P&amp;L &#8377;</th>
+  <th data-k="sell">If sold today</th><th data-k="stq">Short-term units</th><th data-k="nextlt">Turns long-term</th>
+  <th data-k="wt">Weight %</th>
   <th data-k="sip_amount">SIP added &#8377;</th><th data-k="r1y">1Y %</th><th data-k="pctile">Cat %ile</th><th data-k="read">Read</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
 </div>
 
@@ -166,10 +172,22 @@ tfoot td{font-weight:700;background:var(--surface-2)}
 <!-- TAX -->
 <div class="panel" id="tax">
   <div class="cards" id="taxcards"></div>
-  <div class="note">Stocks held more than 12 months count as <b>long-term</b>; the rest are <b>short-term</b>. The split uses the long-term quantity on your Kite statement, so it is only as current as that statement. Booked losses can be set off against gains of the same year, and unused losses carry forward if you file on time. This is a record of where your losses sit, not tax advice.</div>
+  <div class="note" id="taxnote"></div>
+  <h2>Every holding: what selling today would mean</h2>
+  <div class="toolbar">
+    <select id="tsell"><option value="">Any</option><option value="LOSS">No tax - a loss</option><option value="LT GAIN">Tax-free - long-term gain</option><option value="ST GAIN">Taxed - short-term gain</option><option value="DATE NEEDED">Date needed</option></select>
+    <label><input type="checkbox" id="tsafe"> Only safe to sell today (no tax)</label>
+  </div>
   <div class="tw"><table id="taxtbl"><thead><tr>
-  <th class="l" data-k="sym">Stock</th><th data-k="qty">Qty</th><th data-k="ltq">Long-term qty</th>
-  <th data-k="pl">Total P&amp;L &#8377;</th><th data-k="st_pl">Short-term &#8377;</th><th data-k="lt_pl">Long-term &#8377;</th><th data-k="plpct">P&amp;L %</th><th class="l" data-k="read">Read</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+  <th class="l" data-k="name">Holding</th><th class="l" data-k="kind">Type</th><th data-k="qty">Qty / units</th>
+  <th data-k="stq">Short-term</th><th data-k="ltq">Long-term</th>
+  <th data-k="st_pl">Short-term P&amp;L &#8377;</th><th data-k="lt_pl">Long-term P&amp;L &#8377;</th>
+  <th data-k="tax_now">Tax if sold &#8377;</th><th data-k="sell">If sold today</th><th data-k="nextlt">Next lot turns long-term</th>
+  <th class="l" data-k="note">What it means</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+  <h2>Every purchase lot <span class="dim" id="lotcount"></span></h2>
+  <div class="tw"><table id="lottbl"><thead><tr>
+  <th class="l" data-k="name">Holding</th><th data-k="buy">Bought</th><th data-k="qty">Qty / units</th><th data-k="price">Buy price</th>
+  <th data-k="gain">Gain / loss now &#8377;</th><th data-k="status">Today</th><th data-k="lt_on">Long-term from</th><th data-k="days">Days to go</th></tr></thead><tbody></tbody></table></div>
 </div>
 
 <!-- STOCKS -->
@@ -252,6 +270,11 @@ document.getElementById('pw').addEventListener('keydown',e=>{ if(e.key==='Enter'
 // ---------- everything below runs only after a correct password ----------
 function boot(DATA){
 const S=DATA.summary;
+// tax view (build.py tax_view): flatten for sorting; old payloads without it still render
+const SELL_LABEL={'LOSS':'No tax - loss','LT GAIN':'Tax-free*','ST GAIN':'Taxed - short-term','DATE NEEDED':'Date needed'};
+for(const r of [...DATA.my_stocks,...DATA.my_mf]){ const t=r.tax||{};
+  r.sell=t.read||null; r.stq=t.st_qty==null?null:t.st_qty; r.nextlt=t.next_lt||null; }
+DATA.lots=DATA.lots||[]; DATA.tax=DATA.tax||{};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sign=v=>v>0?'+':'';
@@ -339,23 +362,31 @@ const hf=()=>({q:$('hq').value.trim().toLowerCase(),read:$('hread').value,loss:$
 const stockRows=()=>{ const f=hf(); return DATA.my_stocks.filter(r=>(!f.q||(r.sym+' '+r.sector).toLowerCase().includes(f.q))&&(!f.read||r.read===f.read)&&(!f.loss||r.pl<0)); };
 const mfRows=()=>{ const f=hf(); return DATA.my_mf.filter(r=>(!f.q||(r.name+' '+r.cat).toLowerCase().includes(f.q))&&(!f.read||r.read===f.read)&&(!f.loss||r.pl<0)); };
 const sum=(rows,k)=>rows.reduce((a,r)=>a+(r[k]||0),0);
+const slab=r=>r.tax&&r.tax.months===24;
+const sellTag=r=>r.sell?`<span class="tag ${slab(r)&&r.sell==='ST GAIN'?'SLAB':cl(r.sell)}" title="${esc(r.tax.note)}">${slab(r)&&r.sell==='ST GAIN'?'Taxed - slab rate':SELL_LABEL[r.sell]}</span>`:'<span class=dim>—</span>';
+const stqCell=r=>r.stq==null?'<span class=dim>—</span>':(r.tax.unk_qty>0&&r.stq===0?'<span class=dim title="buy dates not loaded">unknown</span>':(r.stq>0?`${+r.stq.toFixed(3)}`:'<span class=dim>none</span>'));
+const ltCell=r=>{ const t=r.tax||{}; if(t.next_lt) return `${fmtDate(t.next_lt)} <span class=dim>(${t.next_lt_days} d)</span>`;
+  if(t.unk_qty>0||t.nodate_qty>0) return '<span class=dim title="Load the Kite tradebook to get the buy dates">date needed</span>';
+  return r.stq===0?'<span class="pos">already</span>':'<span class=dim>—</span>'; };
 const renderSt=makeTable('myst',stockRows,r=>`<tr>
 <td>${esc(r.sym)}</td><td class="l dim">${esc(r.sector)}</td><td>${r.qty}</td><td>${r.avg}</td><td>${r.px}</td>
 <td>${pct(r.r1d)}</td><td>${money(r.day_pl)}</td><td>${inr(r.inv)}</td><td>${inr(r.pres)}</td>
-<td>${pct(r.plpct)}</td><td>${money(r.pl)}</td><td>${r.wt}</td>
+<td>${pct(r.plpct)}</td><td>${money(r.pl)}</td>
+<td>${sellTag(r)}</td><td>${stqCell(r)}</td><td>${ltCell(r)}</td><td>${r.wt}</td>
 <td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td>
 <td><span class="tag ${cl(r.tag)}">${esc(r.tag)}</span></td>
 <td><span class="tag ${cl(r.read)}">${esc(r.read)}</span></td>
 <td class="l">${r.rep?'&rarr; '+esc(r.rep):'<span class=dim>—</span>'}</td></tr>`,
-rows=>{ const inv=sum(rows,'inv'),pres=sum(rows,'pres'); return `<tr><td>Total</td><td class="l dim">${rows.length} stocks</td><td></td><td></td><td></td><td></td><td>${money(sum(rows,'day_pl'))}</td><td>${inr(inv)}</td><td>${inr(pres)}</td><td>${pct(inv?Math.round(1000*(pres/inv-1))/10:0)}</td><td>${money(pres-inv)}</td><td colspan="5"></td></tr>`; });
+rows=>{ const inv=sum(rows,'inv'),pres=sum(rows,'pres'); return `<tr><td>Total</td><td class="l dim">${rows.length} stocks</td><td></td><td></td><td></td><td></td><td>${money(sum(rows,'day_pl'))}</td><td>${inr(inv)}</td><td>${inr(pres)}</td><td>${pct(inv?Math.round(1000*(pres/inv-1))/10:0)}</td><td>${money(pres-inv)}</td><td colspan="8"></td></tr>`; });
 const renderMf=makeTable('mymf',mfRows,r=>`<tr>
 <td>${esc(r.name)}</td><td class="l dim">${esc(r.cat)}</td><td>${r.units}</td><td>${r.avg}</td><td>${r.nav}</td>
 <td>${money(r.day_pl)}</td><td>${inr(r.inv)}</td><td>${inr(r.pres)}</td>
-<td>${pct(r.plpct)}</td><td>${money(r.pl)}</td><td>${r.wt}</td>
+<td>${pct(r.plpct)}</td><td>${money(r.pl)}</td>
+<td>${sellTag(r)}</td><td>${stqCell(r)}</td><td>${ltCell(r)}</td><td>${r.wt}</td>
 <td>${r.sip_amount?inr(r.sip_amount):'<span class=dim>—</span>'}</td><td>${pct(r.r1y)}</td>
 <td>${r.pctile==null?'<span class=dim>—</span>':r.pctile}</td>
 <td><span class="tag ${cl(r.read)}">${esc(r.read)}</span></td></tr>`,
-rows=>{ const inv=sum(rows,'inv'),pres=sum(rows,'pres'); return `<tr><td>Total</td><td class="l dim">${rows.length} funds</td><td></td><td></td><td></td><td>${money(sum(rows,'day_pl'))}</td><td>${inr(inv)}</td><td>${inr(pres)}</td><td>${pct(inv?Math.round(1000*(pres/inv-1))/10:0)}</td><td>${money(pres-inv)}</td><td></td><td>${inr(sum(rows,'sip_amount'))}</td><td colspan="3"></td></tr>`; });
+rows=>{ const inv=sum(rows,'inv'),pres=sum(rows,'pres'); return `<tr><td>Total</td><td class="l dim">${rows.length} funds</td><td></td><td></td><td></td><td>${money(sum(rows,'day_pl'))}</td><td>${inr(inv)}</td><td>${inr(pres)}</td><td>${pct(inv?Math.round(1000*(pres/inv-1))/10:0)}</td><td>${money(pres-inv)}</td><td colspan="4"></td><td>${inr(sum(rows,'sip_amount'))}</td><td colspan="3"></td></tr>`; });
 function renderHoldings(){ const a=renderSt(), b=renderMf(); $('stcount').textContent=a+' of '+DATA.my_stocks.length; $('mfcount').textContent=b+' of '+DATA.my_mf.length; }
 ['hq','hread','hloss'].forEach(id=>$(id).addEventListener('input',renderHoldings));
 renderHoldings();
@@ -383,17 +414,46 @@ $('siplog').querySelector('tbody').innerHTML=DATA.sip_log.length?DATA.sip_log.ma
 (function(){
   const nowIst=new Date(Date.now()+IST); const fyEndYear=nowIst.getUTCMonth()>2?nowIst.getUTCFullYear()+1:nowIst.getUTCFullYear();
   const dLeft=daysTo(fyEndYear+'-03-31');
-  const losers=DATA.my_stocks.filter(r=>r.pl<0);
+  const T=DATA.tax;
+  const all=[...DATA.my_stocks.map(r=>({...r,name:r.sym,kind:'Stock'})),...DATA.my_mf.map(r=>({...r,qty:r.units,kind:'Fund'}))]
+    .filter(r=>r.tax).map(r=>({...r,ltq:r.tax.lt_qty,st_pl:r.tax.st_pl,lt_pl:r.tax.lt_pl,tax_now:r.tax.tax_now,note:r.tax.note}));
+  const safe=all.filter(r=>r.sell==='LOSS'||r.sell==='LT GAIN');
+  const stGain=all.filter(r=>r.sell==='ST GAIN');
   $('taxcards').innerHTML=`
-  <div class="card"><div class="v neg">${inr(S.st_loss)}</div><div class="l">Short-term losses</div><div class="h">Unbooked, on stocks</div></div>
-  <div class="card"><div class="v neg">${inr(S.lt_loss)}</div><div class="l">Long-term losses</div><div class="h">Unbooked, on stocks</div></div>
-  <div class="card"><div class="v">${losers.length} of ${DATA.my_stocks.length}</div><div class="l">Stocks below cost</div><div class="h">From the latest prices</div></div>
-  <div class="card"><div class="v">${dLeft} days</div><div class="l">Until 31 Mar ${fyEndYear}</div><div class="h">End of this financial year</div></div>`;
-  const render=makeTable('taxtbl',()=>DATA.my_stocks.filter(r=>r.pl<0).sort((a,b)=>a.pl-b.pl),r=>`<tr>
-  <td>${esc(r.sym)}</td><td>${r.qty}</td><td>${r.ltq}</td><td>${money(r.pl)}</td><td>${r.st_pl?money(r.st_pl):'<span class=dim>—</span>'}</td><td>${r.lt_pl?money(r.lt_pl):'<span class=dim>—</span>'}</td><td>${pct(r.plpct)}</td>
-  <td class="l"><span class="tag ${cl(r.read)}">${esc(r.read)}</span></td></tr>`,
-  rows=>`<tr><td>Total</td><td></td><td></td><td>${money(sum(rows,'pl'))}</td><td>${money(sum(rows,'st_pl'))}</td><td>${money(sum(rows,'lt_pl'))}</td><td colspan="2"></td></tr>`);
+  <div class="card"><div class="v pos">${safe.length} of ${all.length}</div><div class="l">Safe to sell today</div><div class="h">A loss or a long-term gain - no tax to pay*</div></div>
+  <div class="card"><div class="v ${stGain.length?'neg':''}">${stGain.length}</div><div class="l">Would be taxed now</div><div class="h">Short-term gains ${stGain.length?'&middot; about '+inr(sum(stGain,'tax_now'))+' tax':''}</div></div>
+  <div class="card"><div class="v">${inr(T.tax_all||0)}</div><div class="l">Tax if you sold everything</div><div class="h">Losses set off against gains first</div></div>
+  <div class="card"><div class="v">${T.next_on?fmtDate(T.next_on):'&mdash;'}</div><div class="l">Next lot turns long-term</div><div class="h">${T.next_on?esc(T.next_name)+' &middot; in '+daysTo(T.next_on)+' days':(T.have_lots?'no short-term lots left':'needs the Kite tradebook')}</div></div>
+  <div class="card"><div class="v">${dLeft} days</div><div class="l">Until 31 Mar ${fyEndYear}</div><div class="h">Losses booked before this count this year</div></div>`;
+  const src=T.have_lots?`Buy dates come from your Kite tradebook (${esc((T.lots_files||[]).join(', '))}, trades from ${fmtDate(T.lots_first)} to ${fmtDate(T.lots_matched_to)}).`+
+      (T.lots_stale_since?` <b>Your holdings statement of ${fmtDate(T.lots_stale_since)} is newer than that tradebook</b> - anything bought after it shows "date needed" until the tradebook is imported again.`:'')
+    :`<b>No tradebook loaded yet</b>, so buy dates are missing: short/long-term stock quantities come from your Kite statement, and dates show "date needed". Import the Kite Console tradebook to fill them in.`;
+  $('taxnote').innerHTML=`<b>How to read this.</b> Shares and equity funds held for <b>more than 12 months</b> are long-term; anything newer is short-term.
+  Selling at a <b>loss</b> never creates tax - a booked loss lowers the tax on your other gains, and carries forward for 8 years if you file your return on time.
+  A <b>long-term gain</b> is tax-free while all your long-term gains in the financial year stay under <b>&#8377;1.25 lakh</b> (12.5% above that).
+  A <b>short-term gain</b> is taxed at <b>20%</b> - waiting until the date shown turns it long-term.
+  The Franklin dynamic asset allocation fund of funds is not an equity fund: it turns long-term after 24 months and short-term gains are taxed at your slab rate.
+  Each sale is matched to your oldest purchase first. ${src} Estimates only - gains you have already booked this year are not included; check with your CA before a large sale.
+  <span class=dim>* tax-free while this year's long-term gains stay under &#8377;1.25 lakh.</span>`;
+  const tRows=()=>{ const f=$('tsell').value, s=$('tsafe').checked; return all.filter(r=>(!f||r.sell===f)&&(!s||r.sell==='LOSS'||r.sell==='LT GAIN')); };
+  const fmtQ=v=>v>0?+Number(v).toFixed(3):'<span class=dim>0</span>';
+  const render=makeTable('taxtbl',tRows,r=>`<tr>
+  <td>${esc(r.name)}</td><td class="l dim">${r.kind}</td><td>${+Number(r.qty).toFixed(3)}</td><td>${r.tax.unk_qty>0&&!r.stq?'<span class=dim>unknown</span>':fmtQ(r.stq)}</td><td>${r.tax.unk_qty>0&&!r.ltq?'<span class=dim>unknown</span>':fmtQ(r.ltq)}</td>
+  <td>${r.stq>0?money(r.st_pl):'<span class=dim>—</span>'}</td><td>${r.ltq>0?money(r.lt_pl):'<span class=dim>—</span>'}</td>
+  <td>${r.tax_now?`<span class="neg">${inr(r.tax_now)}</span>`:(slab(r)&&r.sell==='ST GAIN'?'<span class=dim>slab</span>':'<span class="pos">0</span>')}</td>
+  <td>${sellTag(r)}</td><td>${ltCell(r)}</td><td class="l dim" style="min-width:260px">${esc(r.note)}</td></tr>`,
+  rows=>`<tr><td>Total</td><td class="l dim">${rows.length}</td><td></td><td></td><td></td><td>${money(sum(rows,'st_pl'))}</td><td>${money(sum(rows,'lt_pl'))}</td><td>${inr(sum(rows,'tax_now'))}</td><td colspan="3"></td></tr>`);
+  ['tsell','tsafe'].forEach(id=>$(id).addEventListener('input',render));
   render();
+  const lots=DATA.lots.map(r=>({...r,status:r.is_lt?'Long-term':'Short-term'}));
+  $('lotcount').textContent=lots.length+' lots';
+  const renderLots=makeTable('lottbl',()=>lots,r=>`<tr>
+  <td>${esc(r.name)} <span class=dim>&middot; ${r.kind}</span></td><td>${r.buy?fmtDate(r.buy):'<span class=dim title="'+esc(r.note||'')+'">unknown</span>'}</td>
+  <td>${+Number(r.qty).toFixed(3)}</td><td>${r.price}</td><td>${money(r.gain)}</td>
+  <td><span class="tag ${r.unknown?'DATENEEDED':(r.is_lt?'LTGAIN':(r.gain>0?'STGAIN':'NEUTRAL'))}">${r.unknown?'Unknown':r.status}</span></td>
+  <td>${r.lt_on?fmtDate(r.lt_on):(r.is_lt?'<span class=dim>already</span>':'<span class=dim>date needed</span>')}</td>
+  <td>${r.days==null?'<span class=dim>—</span>':(r.is_lt?'<span class=dim>0</span>':r.days)}</td></tr>`);
+  renderLots();
 })();
 
 // Stocks screen

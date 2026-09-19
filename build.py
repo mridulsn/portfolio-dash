@@ -43,6 +43,10 @@ SIPS = [dict(isin=x[0], amount=float(x[1]), day=int(x[2]), name=(x[3] if len(x) 
         for x in _j.get("sips", [])]
 HOLDINGS_ASOF = _j.get("asof")
 HELD_SYMS = {x[0] for x in STOCK_HOLDINGS}
+# lots: {"eq": {sym: [[buy_date|None, qty, price|None], ...]}, "mf": {isin: [...]}} from import_tradebook.py
+LOTS = _j.get("lots") or {"eq": {}, "mf": {}}
+LOTS_INFO = _j.get("lots_info") or {}
+STOCK_ISIN = {x[0]: (x[5] if len(x) > 5 else None) for x in _j["stocks"]}
 
 PASSWORD = os.environ.get("DASH_PASSWORD")
 if not PASSWORD:
@@ -289,7 +293,7 @@ for sp in SIPS:
             else:
                 nav_i=float(w.iloc[0]); u=sp['amount']*(1-STAMP_DUTY)/nav_i
                 u_add+=u; a_add+=sp['amount']; n+=1
-                sip_log.append(dict(date=str(d_),fund=sp['name'],amount=round(sp['amount']),nav=round(nav_i,4),
+                sip_log.append(dict(date=str(d_),fund=sp['name'],isin=sp['isin'],amount=round(sp['amount']),nav=round(nav_i,4),
                                     nav_date=str(w.index[0].date()),units=round(u,3)))
         m+=1
         if m>12: m=1; y+=1
@@ -311,12 +315,118 @@ for name,isin,cat,units,avgn in list(MF_HOLDINGS)+extra:
     day_pl=units*(nav-rec['nav_prev']) if rec else 0.0
     fa=hmap.get(name[:46]); pctile=fa['pctile'] if fa else None
     read="—" if pctile is None else ("KEEP" if pctile>=60 else ("REVIEW" if pctile<35 else "HOLD"))
-    my_mf.append(dict(name=name,cat=cat,units=round(units,3),avg=round(avgn,4),nav=round(nav,4),inv=round(inv),
+    my_mf.append(dict(name=name,isin=isin,cat=cat,units=round(units,3),avg=round(avgn,4),nav=round(nav,4),inv=round(inv),
         day_pl=round(day_pl),nav_date=rec['nav_date'] if rec else None,nav_prev_date=rec['nav_prev_date'] if rec else None,sip_units=round(u_add,3),sip_amount=round(a_add),
         pres=round(pres),pl=round(pres-inv),plpct=round((pres/inv-1)*100,1) if inv else 0,wt=0,
         r1y=fa['r1y'] if fa else None,pctile=pctile,read=read))
 for m in my_mf: m['wt']=round(100*m['pres']/present_m,1)
 my_mf.sort(key=lambda x:x['pl'])
+# ---- tax if sold today: short- vs long-term per purchase lot ----
+# Rules checked 2026-09-19 (unchanged by Budget 2026): listed shares and equity-oriented funds are
+# long-term after MORE than 12 months; short-term gains 20%, long-term 12.5% on gains above
+# Rs 1.25 lakh a financial year. A fund of funds that is not equity-oriented (the Franklin dynamic
+# asset allocation FoF) is long-term only after 24 months and its short-term gains are taxed at slab.
+ST_RATE, LT_RATE, LT_EXEMPT = 0.20, 0.125, 125000
+def lt_date(buy, months):
+    y = buy.year + months // 12
+    try: anniv = buy.replace(year=y)
+    except ValueError: anniv = dt.date(y, 3, 1)          # 29 Feb purchase
+    return anniv + dt.timedelta(days=1)                  # "more than" 12 months: the day after
+def fifo_fit(lots, qty):
+    """Make dated lots match today's quantity: sold shares leave the oldest lots first; extra
+    shares with no record become one undated lot. Never invents a date."""
+    lots = [[l[0], float(l[1]), l[2]] for l in lots if float(l[1]) > 1e-4]
+    have = sum(l[1] for l in lots)
+    while have > qty + 1e-4 and lots:
+        cut = min(have - qty, lots[0][1]); lots[0][1] -= cut; have -= cut
+        if lots[0][1] <= 1e-4: lots.pop(0)
+    if qty - have > 1e-3: lots.append([None, qty - have, None])
+    return lots
+def tax_view(name, kind, qty, avg, px, lots, months, kite_ltq=None, slab=False):
+    lots = fifo_fit(lots or [], qty)
+    dated_cost = sum(l[1] * l[2] for l in lots if l[0] and l[2] is not None)
+    und = [l for l in lots if not l[0]]
+    und_qty = sum(l[1] for l in und)
+    und_px = max(0.0, (qty * avg - dated_cost) / und_qty) if und_qty > 1e-4 else avg
+    rows, st_q, lt_q, st_pl, lt_pl, unk_q = [], 0.0, 0.0, 0.0, 0.0, 0.0
+    dated_lt = 0.0; nodate_q = 0.0; unk_pl = 0.0   # nodate: known short-term, date missing; unk: status unknown
+    for d_, q, p in lots:
+        if d_:
+            b = dt.date.fromisoformat(d_); on = lt_date(b, months); is_lt = today_ist >= on
+            g = (px - p) * q
+            if is_lt: lt_q += q; lt_pl += g; dated_lt += q
+            else: st_q += q; st_pl += g
+            rows.append(dict(name=name, kind=kind, buy=d_, qty=round(q, 4), price=round(p, 4), gain=round(g),
+                             lt_on=str(on), is_lt=is_lt, days=max(0, (on - today_ist).days)))
+    if und_qty > 1e-4:
+        g = (px - und_px) * und_qty
+        if kite_ltq is None:
+            # funds: Kite gives no long-term count, so without dates the status is UNKNOWN -
+            # never assume short-term (that overstated tax on 2026-09-19)
+            unk_q += und_qty; unk_pl += g
+            rows.append(dict(name=name, kind=kind, buy=None, qty=round(und_qty, 4), price=round(und_px, 4),
+                             gain=round(g), lt_on=None, is_lt=False, unknown=True, days=None,
+                             note="buy date needed - load the Kite tradebook"))
+        else:
+            lt_part = max(0.0, min(und_qty, kite_ltq - dated_lt))
+            st_part = und_qty - lt_part
+            lt_q += lt_part; lt_pl += g * lt_part / und_qty
+            st_q += st_part; st_pl += g * st_part / und_qty; nodate_q += st_part
+            rows.append(dict(name=name, kind=kind, buy=None, qty=round(und_qty, 4), price=round(und_px, 4),
+                             gain=round(g), lt_on=None, is_lt=(st_part <= 1e-4 and lt_part > 0), days=None,
+                             note=("long-term per Kite statement" if st_part <= 1e-4 else
+                                   "short-term per Kite statement; buy date needed for the long-term date")))
+    st_dates = [r for r in rows if r['buy'] and not r['is_lt']]
+    nxt = min(st_dates, key=lambda r: r['lt_on']) if st_dates else None
+    if unk_q > 1e-4 and unk_pl > 0 and st_pl <= 0:
+        read, note = "DATE NEEDED", (f"In profit by Rs {round(unk_pl):,} but the buy dates are not loaded, so short- or "
+                                     "long-term is not known yet. Load the Kite tradebook.")
+    elif st_pl <= 0 and lt_pl <= 0 and unk_pl <= 0:
+        read, note = "LOSS", "Selling books a loss: no tax to pay, and the loss lowers tax on other gains."
+    elif st_pl > 0:
+        read = "ST GAIN"
+        tax = "taxed at your slab rate" if slab else f"about Rs {round(st_pl * ST_RATE):,} tax (20%)"
+        when = (f"; waits until {nxt['lt_on']} to turn long-term" if nxt else
+                "; buy date unknown, so the long-term date is not known yet")
+        note = f"Short-term gain of Rs {round(st_pl):,} - {tax}{when}."
+    else:
+        read, note = "LT GAIN", "Long-term gain: tax-free while your long-term gains this year stay under Rs 1.25 lakh."
+    return dict(st_qty=round(st_q, 4), lt_qty=round(lt_q, 4), unk_qty=round(unk_q, 4),
+                nodate_qty=round(nodate_q, 4), unk_pl=round(unk_pl),
+                st_pl=round(st_pl), lt_pl=round(lt_pl),
+                tax_now=0 if slab else round(max(0.0, st_pl) * ST_RATE),
+                next_lt=nxt['lt_on'] if nxt else None, next_lt_days=nxt['days'] if nxt else None,
+                all_lt=max((r['lt_on'] for r in st_dates), default=None),
+                read=read, note=note, months=months, lots=rows)
+lot_rows = []
+for m in my_stocks:
+    t = tax_view(m['sym'], "Stock", m['qty'], m['avg'], m['px'], LOTS.get("eq", {}).get(m['sym']), 12,
+                 kite_ltq=m['ltq'])
+    m['tax'] = {k: v for k, v in t.items() if k != "lots"}; lot_rows += t['lots']
+    m['ltq'], m['st_pl'], m['lt_pl'] = t['lt_qty'], t['st_pl'], t['lt_pl']
+for m in my_mf:
+    fof = m['cat'] == "Fund of Funds"
+    base = LOTS.get("mf", {}).get(m['isin']) or []
+    sips = [[x['date'], x['units'], x['nav']] for x in sip_log if x.get('isin') == m['isin']]
+    t = tax_view(m['name'], "Fund", m['units'], m['avg'], m['nav'], base + sips, 24 if fof else 12, slab=fof)
+    m['tax'] = {k: v for k, v in t.items() if k != "lots"}; lot_rows += t['lots']
+lot_rows.sort(key=lambda r: (r['is_lt'], r['lt_on'] or "9999", r['name']))
+all_t = [m['tax'] for m in my_stocks + my_mf]
+st_net = sum(t['st_pl'] for t in all_t); lt_net = sum(t['lt_pl'] for t in all_t)
+# selling everything today: short-term losses first cover short-term gains, then long-term gains
+st_taxable = max(0.0, st_net); lt_after = lt_net + min(0.0, st_net)
+tax_all = round(st_taxable * ST_RATE + max(0.0, lt_after - LT_EXEMPT) * LT_RATE)
+upcoming = sorted([r for r in lot_rows if r['buy'] and not r['is_lt']], key=lambda r: r['lt_on'])
+tax_summary = dict(st_net=round(st_net), lt_net=round(lt_net), tax_all=tax_all,
+    st_gain_holdings=sum(1 for t in all_t if t['st_pl'] > 0),
+    next_name=upcoming[0]['name'] if upcoming else None, next_on=upcoming[0]['lt_on'] if upcoming else None,
+    undated=round(sum(1 for r in lot_rows if not r['buy'] and not r['is_lt']) ),
+    lots_files=LOTS_INFO.get("files"), lots_first=LOTS_INFO.get("first_trade"),
+    lots_matched_to=LOTS_INFO.get("matched_to"), lots_stale_since=LOTS_INFO.get("stale_since"),
+    have_lots=bool(LOTS.get("eq") or LOTS.get("mf")))
+print(f"tax view: {len(lot_rows)} lots, short-term net Rs {round(st_net):,}, long-term net Rs {round(lt_net):,},"
+      f" tax if all sold today ~Rs {tax_all:,}")
+
 sector_w={}
 for m in my_stocks: sector_w[m['sector']]=sector_w.get(m['sector'],0)+m['pres']
 sector_w={k:round(100*v/present_s,1) for k,v in sorted(sector_w.items(),key=lambda x:-x[1])}
@@ -343,7 +453,7 @@ summary=dict(
     lt_loss=round(sum(min(m['lt_pl'],0) for m in my_stocks)), st_loss=round(sum(min(m['st_pl'],0) for m in my_stocks)))
 payload=dict(summary=summary,stocks_all=stocks_all,top_day=top_day,top_week=top_week,top_month=top_month,
     stable=stable,funds_all=funds_all,my_stocks=my_stocks,my_mf=my_mf,sector_w=sector_w,mf_cat_w=mf_cat_w,
-    sips=sip_rows,sip_log=sip_log)
+    sips=sip_rows,sip_log=sip_log,lots=lot_rows,tax=tax_summary)
 
 # ----------------------------------------------------------------------------- 5. encrypt + write
 if not os.environ.get("GITHUB_ACTIONS"):
