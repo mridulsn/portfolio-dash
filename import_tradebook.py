@@ -54,7 +54,9 @@ def read_rows(path):
             raw = list(csv.reader(f))
         sheets = [raw]
     else:
-        wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+        # NOT read_only: Zerodha's xlsx has no <dimension> tag, and read-only mode then sees a
+        # single empty cell (found 2026-09-19 - it reported "0 trades")
+        wb = openpyxl.load_workbook(path, data_only=True)
         sheets = [[list(r) for r in ws.iter_rows(values_only=True)] for ws in wb.worksheets]
     out = []
     for raw in sheets:
